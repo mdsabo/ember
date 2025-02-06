@@ -1,0 +1,7 @@
+build --enable_platform_specific_config
+
+build:clang --cxxopt=-std=c++2b
+build:vs2022 --cxxopt=/std:c++latest
+
+build:windows --config=vs2022
+build:macos --config=clang
