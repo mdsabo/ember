@@ -1,4 +1,7 @@
-#include "../DynamicBitset.h"
+#include "DynamicBitset.h"
+
+#include <algorithm>
+#include <stdexcept>
 
 namespace ember::collections {
     bool DynamicBitset::operator[](size_t bit) const {
@@ -8,33 +11,31 @@ namespace ember::collections {
 
     bool DynamicBitset::test(size_t bit) const {
         auto [index, mask] = bit_indices(bit);
-        return bool(m_data.at(index) & mask);
+        return (bit < m_size) && bool(m_data.at(index) & mask);
     }
 
     bool DynamicBitset::all() const {
-        for (const auto& word : m_data) {
-            if (word != -1ULL) return false;
-        }
-        return true;
+        return std::all_of(m_data.begin(), m_data.end(), [](const uint64_t x){ return x == -1ULL; });
     }
 
     bool DynamicBitset::any() const {
-        for (const auto& word: m_data) {
-            if (word != 0) return true;
-        }
-        return false;
+        return std::any_of(m_data.begin(), m_data.end(), [](const uint64_t x){ return bool(x); });
     }
 
     bool DynamicBitset::none() const {
-        return !any();
-    }
-
-    size_t DynamicBitset::size() const {
-        return m_data.size() * 64;
+        return std::none_of(m_data.begin(), m_data.end(), [](const uint64_t x){ return bool(x); });
     }
 
     void DynamicBitset::resize(size_t nbits) {
+        // If we need to grow the bitset and the current set covers
+        // a partial word, clear the upper bits of the word.
+        if ((nbits > m_size) && (m_size & 0x3f)) {
+            auto [index, mask] = bit_indices(m_size);
+            m_data.at(index) &= (mask - 1);
+        }
+
         m_data.resize((nbits + 63) >> 6, 0);
+        m_size = nbits;
     }
 
     void DynamicBitset::set(size_t bit) {
@@ -45,6 +46,18 @@ namespace ember::collections {
     void DynamicBitset::reset(size_t bit) {
         auto [index, mask] = bit_indices(bit);
         m_data.at(index) &= ~mask;
+    }
+
+    DynamicBitset& DynamicBitset::operator=(const DynamicBitset& rhs) {
+        this->m_data = rhs.m_data;
+        this->m_size = rhs.m_size;
+        return *this;
+    }
+
+    DynamicBitset& DynamicBitset::operator=(DynamicBitset&& rhs) {
+        this->m_data = rhs.m_data;
+        this->m_size = rhs.m_size;
+        return *this;
     }
 
     DynamicBitset& DynamicBitset::operator&=(const DynamicBitset& rhs) {
