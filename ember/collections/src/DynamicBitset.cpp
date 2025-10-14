@@ -39,11 +39,15 @@ namespace ember::collections {
     }
 
     void DynamicBitset::set(size_t bit) {
+        if (bit >= m_size) throw std::out_of_range("bit out of bounds");
+
         auto [index, mask] = bit_indices(bit);
         m_data.at(index) |= mask;
     }
 
     void DynamicBitset::reset(size_t bit) {
+        if (bit >= m_size) throw std::out_of_range("bit out of bounds");
+        
         auto [index, mask] = bit_indices(bit);
         m_data.at(index) &= ~mask;
     }

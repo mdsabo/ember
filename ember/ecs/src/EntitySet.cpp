@@ -1,6 +1,7 @@
 #include "EntitySet.h"
 
 #include <cassert>
+
 namespace ember::ecs {
     void EntitySet::insert(Entity e) {
         if (e.id >= m_ids.size()) {
