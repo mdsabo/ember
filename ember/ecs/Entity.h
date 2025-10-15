@@ -12,6 +12,7 @@ namespace ember::ecs {
             uint32_t generation;
         };
 
+        constexpr Entity(): raw(0) { }
         constexpr Entity(uint64_t raw): raw(raw) { }
         constexpr Entity(uint32_t generation, uint32_t id): generation(generation), id(id) { }
         constexpr Entity(const Entity&) = default;
@@ -27,7 +28,12 @@ namespace ember::ecs {
         friend constexpr inline bool operator==(const Entity& lhs, const Entity& rhs) {
             return (lhs.id <=> rhs.id) == std::strong_ordering::equal;
         }
+        friend constexpr inline bool operator!=(const Entity& lhs, const Entity& rhs) {
+            return (lhs.id <=> rhs.id) != std::strong_ordering::equal;
+        }
     };
+
+    static constexpr Entity INVALID_ENTITY = Entity(-1ULL);
 
 }
 

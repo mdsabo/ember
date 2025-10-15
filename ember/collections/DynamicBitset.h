@@ -30,6 +30,7 @@ namespace ember::collections {
         DynamicBitset& operator&=(const DynamicBitset& rhs);
         friend DynamicBitset operator&(const DynamicBitset& lhs, const DynamicBitset& rhs);
 
+        inline const std::vector<uint64_t>& data() const { return m_data; }
         inline std::vector<uint64_t>& data() { return m_data; }
     private:
         std::vector<uint64_t> m_data;

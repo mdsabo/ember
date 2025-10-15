@@ -11,7 +11,7 @@ namespace ember::ecs {
 
     class EntitySet {
     public:
-        EntitySet(size_t size = 0): m_ids(size), m_generations(size) { }
+        EntitySet(size_t size = 0): m_ids(size), m_generations(size, 0) { }
         EntitySet(const EntitySet&) = default;
         EntitySet(EntitySet&&) = default;
 
@@ -29,7 +29,7 @@ namespace ember::ecs {
 
         EntitySet& operator&=(const EntitySet& rhs);
         friend EntitySet operator&(const EntitySet& lhs, const EntitySet& rhs);
-        
+
     private:
         collections::DynamicBitset m_ids;
         std::vector<uint32_t> m_generations;

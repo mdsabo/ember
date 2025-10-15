@@ -8,7 +8,7 @@ namespace ember::ecs {
             m_ids.resize(e.id+1);
             m_generations.resize(e.id+1);
         }
-        
+
         m_ids.set(e.id);
         m_generations.at(e.id) = e.generation;
     }
@@ -37,8 +37,8 @@ namespace ember::ecs {
     // but speed is speed.
     namespace {
         void intersect_generations(
-            std::vector<uint64_t>& ids, 
-            const std::vector<uint32_t>& lhs, 
+            std::vector<uint64_t>& ids,
+            const std::vector<uint32_t>& lhs,
             const std::vector<uint32_t>& rhs
         ) {
             const auto max_index = std::min(lhs.size(), rhs.size());
@@ -75,7 +75,7 @@ namespace ember::ecs {
         res.m_ids = lhs.m_ids & rhs.m_ids;
 
         if (lhs.size() < rhs.size()) res.m_generations = lhs.m_generations;
-        else res.m_generations = lhs.m_generations;
+        else res.m_generations = rhs.m_generations;
         assert(res.m_ids.size() == res.m_generations.size());
 
         intersect_generations(res.m_ids.data(), lhs.m_generations, rhs.m_generations);

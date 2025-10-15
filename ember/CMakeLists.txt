@@ -1,5 +1,6 @@
 add_subdirectory(collections)
 add_subdirectory(ecs)
+add_subdirectory(gpu)
 
 add_library(ember INTERFACE)
 target_include_directories(ember INTERFACE
