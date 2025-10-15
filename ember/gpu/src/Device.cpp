@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <array>
+#include <string_view>
 #include <vector>
 
+#include "Util.h"
 #include "Vulkan.h"
 
 namespace ember::gpu {
@@ -67,11 +69,11 @@ namespace ember::gpu {
         }
 
         bool device_supports_extension(
-            const char* extension,
+            std::string_view extension,
             const std::vector<vk::ExtensionProperties> device_extensions
         ) {
             for (const auto ext : device_extensions) {
-                if (!strcmp(ext.extensionName, extension)) return true;
+                if (extension == ext.extensionName) return true;
             }
             return false;
         }
@@ -122,7 +124,7 @@ namespace ember::gpu {
             auto queue_family_properties = physical_device.getQueueFamilyProperties();
             for (auto i = 0; i < queue_family_properties.size(); i++) {
                 const auto& properties = queue_family_properties[i];
-                if ((properties.queueFlags & QUEUE_FLAGS) == QUEUE_FLAGS) return i;
+                if (vkFlagContains(properties.queueFlags, QUEUE_FLAGS)) return i;
             }
             throw std::runtime_error("No suitable queue family found!");
         }

@@ -1,5 +1,7 @@
 #include "Renderer.h"
 
+#include "Util.h"
+
 namespace ember::gpu {
 
     Renderer::Renderer(std::shared_ptr<const GraphicsDevice> device): m_gpu(device) {
@@ -24,7 +26,7 @@ namespace ember::gpu {
         ) {
             for (auto i = 0; i < device_memory_properties.memoryTypeCount; i++) {
                 auto has_type = bool((1ULL << i) & type_filter);
-                auto has_properties = (device_memory_properties.memoryTypes[i].propertyFlags & flags) == flags;
+                auto has_properties = vkFlagContains(device_memory_properties.memoryTypes[i].propertyFlags, flags);
                 if (has_type && has_properties) return i;
             }
             throw std::runtime_error("No suitable memory types found!");
