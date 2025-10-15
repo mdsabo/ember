@@ -3,6 +3,7 @@ find_package(Vulkan REQUIRED)
 add_library(ember-gpu
     STATIC
     src/Device.cpp
+    src/Renderer.cpp
 )
 target_include_directories(ember-gpu PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR})
 target_link_libraries(ember-gpu Vulkan::Vulkan)

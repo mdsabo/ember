@@ -1,4 +1,4 @@
-#include "Device.h"
+#include "GraphicsDevice.h"
 
 #include <algorithm>
 #include <array>
@@ -50,14 +50,12 @@ namespace ember::gpu {
             const auto instance_layers = get_instance_layers(app_info.features);
             const auto instance_extensions = get_instance_extensions(app_info.features);
 
-#if defined(__APPLE__)
-            auto instance_flags = vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
-#else
-            auto instance_flags = {};
-#endif
+
 
             const vk::InstanceCreateInfo instance_create_info {
-                .flags = instance_flags,
+#if defined(__APPLE__)
+                .flags = vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
+#endif
                 .pApplicationInfo = &vk_app_info,
                 .enabledLayerCount = static_cast<uint32_t>(instance_layers.size()),
                 .ppEnabledLayerNames = instance_layers.data(),
@@ -78,17 +76,18 @@ namespace ember::gpu {
             return false;
         }
 
+        constexpr std::array<const char*, 0> REQUIRED_DEVICE_EXTENSIONS = {};
         bool device_supports_required_extensions(const vk::PhysicalDevice& device) {
-            constexpr std::array<const char*, 0> REQUIRED_EXTENSIONS = {};
             auto device_extensions = device.enumerateDeviceExtensionProperties();
-            for (const auto ext : REQUIRED_EXTENSIONS) {
+            for (const auto ext : REQUIRED_DEVICE_EXTENSIONS) {
                 if (!device_supports_extension(ext, device_extensions)) return false;
             }
             return true;
         }
 
+        constexpr vk::PhysicalDeviceFeatures REQUIRED_DEVICE_FEATURES = {};
         bool device_supports_required_features(const vk::PhysicalDevice& device) {
-            //constexpr vk::PhysicalDeviceFeatures features = {};
+            //
             return true;
         }
 
@@ -129,15 +128,42 @@ namespace ember::gpu {
         }
     } // namespace
 
-    Device::Device(const AppInfo& app_info) {
+    GraphicsDevice::GraphicsDevice(const AppInfo& app_info) {
         m_instance = create_instance(app_info);
         m_physical_device = select_physical_device(m_instance);
         m_memory_properties = m_physical_device.getMemoryProperties();
         m_queue_family_index = find_queue_family(m_physical_device);
     }
 
-    Device::~Device() {
+    GraphicsDevice::~GraphicsDevice() {
         m_instance.destroy();
+    }
+
+    std::pair<vk::Device, vk::Queue> GraphicsDevice::create_device_and_queue() const {
+        constexpr std::array QUEUE_PRIORTIES = { 1.0f };
+        const vk::DeviceQueueCreateInfo queue_create_info{
+            .queueFamilyIndex = m_queue_family_index,
+            .queueCount = 1,
+            .pQueuePriorities = QUEUE_PRIORTIES.data()
+        };
+
+        std::vector<const char*> extensions(REQUIRED_DEVICE_EXTENSIONS.size());
+        std::copy(REQUIRED_DEVICE_EXTENSIONS.begin(), REQUIRED_DEVICE_EXTENSIONS.end(), extensions.begin());
+#if defined(__APPLE__)
+        extensions.push_back(VK_KHR_PORTABILITY_SUBSET_NAME);
+#endif
+
+        const vk::DeviceCreateInfo device_create_info{
+            .queueCreateInfoCount = 1,
+            .pQueueCreateInfos = &queue_create_info,
+            .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+            .ppEnabledExtensionNames = extensions.data(),
+            .pEnabledFeatures = &REQUIRED_DEVICE_FEATURES,
+        };
+
+        auto device = m_physical_device.createDevice(device_create_info);
+        auto queue = device.getQueue(m_queue_family_index, 0);
+        return std::make_pair(device, queue);
     }
 
 }

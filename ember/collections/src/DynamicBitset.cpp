@@ -65,11 +65,10 @@ namespace ember::collections {
     }
 
     DynamicBitset& DynamicBitset::operator&=(const DynamicBitset& rhs) {
-        const auto minsize = std::min(this->size(), rhs.size());
-        resize(minsize);
+        const auto nbits = std::min(this->size(), rhs.size());
+        resize(nbits);
 
-        const auto num_words = minsize >> 6;
-        for (auto i = 0; i < num_words; i++) {
+        for (auto i = 0; i < this->m_data.size(); i++) {
             this->m_data[i] &= rhs.m_data[i];
         }
 
@@ -77,11 +76,10 @@ namespace ember::collections {
     }
 
     DynamicBitset operator&(const DynamicBitset& lhs, const DynamicBitset& rhs) {
-        const auto minsize = std::min(lhs.size(), rhs.size());
-        auto res = DynamicBitset(minsize);
+        const auto nbits = std::min(lhs.size(), rhs.size());
+        auto res = DynamicBitset(nbits);
 
-        const auto num_words = (minsize >> 6) + 1;
-        for (auto i = 0; i < num_words; i++) {
+        for (auto i = 0; i < res.m_data.size(); i++) {
             res.m_data[i] = lhs.m_data[i] & rhs.m_data[i];
         }
 

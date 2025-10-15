@@ -1,4 +1,4 @@
-#include "Device.h"
+#include "Renderer.h"
 
 using namespace ember::gpu;
 
@@ -12,7 +12,24 @@ int main() {
         }
     };
 
-    auto device = Device::create(app_info);
+    auto device = GraphicsDevice::create(app_info);
+    auto renderer = Renderer(device);
 
+    auto src_buffer = renderer.create_buffer(
+        sizeof(float)*64,
+        vk::BufferUsageFlagBits::eStorageBuffer,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+    );
+
+    auto dst_buffer = renderer.create_buffer(
+        sizeof(float)*64,
+        vk::BufferUsageFlagBits::eStorageBuffer,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+    );
+
+
+
+    renderer.destroy_buffer(src_buffer);
+    renderer.destroy_buffer(dst_buffer);
     return 0;
 }
