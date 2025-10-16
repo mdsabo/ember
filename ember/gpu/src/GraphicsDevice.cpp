@@ -56,7 +56,7 @@ namespace ember::gpu {
 
             const vk::InstanceCreateInfo instance_create_info {
 #if defined(__APPLE__)
-                .flags = vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR;
+                .flags = vk::InstanceCreateFlagBits::eEnumeratePortabilityKHR,
 #endif
                 .pApplicationInfo = &vk_app_info,
                 .enabledLayerCount = static_cast<uint32_t>(instance_layers.size()),
@@ -152,7 +152,7 @@ namespace ember::gpu {
         std::vector<const char*> extensions(REQUIRED_DEVICE_EXTENSIONS.size());
         std::copy(REQUIRED_DEVICE_EXTENSIONS.begin(), REQUIRED_DEVICE_EXTENSIONS.end(), extensions.begin());
 #if defined(__APPLE__)
-        extensions.push_back(VK_KHR_PORTABILITY_SUBSET_NAME);
+        extensions.push_back("VK_KHR_portability_subset");
 #endif
 
         const vk::DeviceCreateInfo device_create_info{
