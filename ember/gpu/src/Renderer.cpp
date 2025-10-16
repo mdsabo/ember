@@ -1,5 +1,7 @@
 #include "Renderer.h"
 
+#include "SPIRV.h"
+#include "ShaderReflection.h"
 #include "Util.h"
 
 namespace ember::gpu {
@@ -65,5 +67,92 @@ namespace ember::gpu {
     void Renderer::destroy_buffer(Buffer& buffer) {
         m_device.freeMemory(buffer.memory);
         m_device.destroyBuffer(buffer.buffer);
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // SHADERS                                                                                  //
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    namespace {
+        std::vector<vk::DescriptorSetLayout> make_descriptor_set_layouts(
+            vk::Device device, 
+            const std::vector<std::vector<vk::DescriptorSetLayoutBinding>>& descriptor_set_layout_bindings
+        ) {
+            std::vector<vk::DescriptorSetLayout> descriptor_set_layouts(descriptor_set_layout_bindings.size());
+            for (auto i = 0; i < descriptor_set_layout_bindings.size(); i++) {
+                const vk::DescriptorSetLayoutCreateInfo create_info{
+                    .bindingCount = static_cast<uint32_t>(descriptor_set_layout_bindings[i].size()),
+                    .pBindings = descriptor_set_layout_bindings[i].data()
+                };
+                descriptor_set_layouts[i] = device.createDescriptorSetLayout(create_info);
+            }
+            return descriptor_set_layouts;
+        }
+    }
+
+    ShaderModule Renderer::create_shader_module(const std::filesystem::path& path) {
+        auto spirv = compile_glsl_to_spirv(path);
+        const vk::ShaderModuleCreateInfo create_info {
+            .codeSize = spirv_code_size(spirv), // codeSize is the size, in bytes (not words for some reason), of the code pointed to by pCode.
+            .pCode = spirv.data()
+        };
+        auto module = m_device.createShaderModule(create_info);
+
+        auto reflection = ShaderReflection(spirv);
+        auto descriptor_set_layout_bindings = reflection.get_descriptor_set_bindings();
+        auto descriptor_set_layouts = make_descriptor_set_layouts(m_device, descriptor_set_layout_bindings);
+        auto push_constant_ranges = reflection.get_push_constant_ranges();
+
+        return ShaderModule{module, descriptor_set_layout_bindings, descriptor_set_layouts, push_constant_ranges}; 
+    }
+
+    void Renderer::destroy_shader_module(ShaderModule& module) {
+        for (auto& layout : module.descriptor_set_layouts) {
+            m_device.destroyDescriptorSetLayout(layout);
+        }
+        m_device.destroyShaderModule(module.shader_module);
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Pipelines                                                                                //
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    vk::PipelineLayout Renderer::create_pipeline_layout(const ShaderModule& shader_module) {
+        const vk::PipelineLayoutCreateInfo create_info {
+            .setLayoutCount = static_cast<uint32_t>(shader_module.descriptor_set_layouts.size()),
+            .pSetLayouts = shader_module.descriptor_set_layouts.data(),
+            .pushConstantRangeCount = static_cast<uint32_t>(shader_module.push_constant_ranges.size()),
+            .pPushConstantRanges = shader_module.push_constant_ranges.data(),
+        };
+        return m_device.createPipelineLayout(create_info);
+    }
+
+    Pipeline Renderer::create_compute_pipeline(const ShaderModule& shader_module, const std::string_view& entry_point) {
+        auto layout = create_pipeline_layout(shader_module);
+
+        const vk::ComputePipelineCreateInfo create_info {
+            .stage = {
+                .stage = vk::ShaderStageFlagBits::eCompute,
+                .module = shader_module.shader_module,
+                .pName = entry_point.data()
+            },
+            .layout = layout
+        };
+
+        auto result = m_device.createComputePipeline(VK_NULL_HANDLE, create_info);
+        if (result.result != vk::Result::eSuccess) {
+            throw std::runtime_error("Failed to create compute pipeline!");
+        }
+
+        return Pipeline{ 
+            .type = PipelineType::Compute, 
+            .layout = layout, 
+            .pipeline = result.value 
+        };
+    }
+
+    void Renderer::destroy_pipeline(Pipeline& pipeline) {
+        m_device.destroyPipeline(pipeline.pipeline);
+        m_device.destroyPipelineLayout(pipeline.layout);
     }
 }

@@ -17,6 +17,15 @@ TEST_CASE("ArgParser::is_set() returns true if requested arg is in argv", "[ArgP
     REQUIRE_FALSE(parser.is_set("--no"));
 }
 
+// TEST_CASE("ArgParser::is_set() returns true if alternate form of arg is in arv", "[ArgParser]") {
+//     constexpr std::array ARGS = { "ProgramName", "-a" };
+//     ArgParser parser(static_cast<int>(ARGS.size()), ARGS.data());
+
+//     parser.add_argument("-a", "-all", "");
+
+//     REQUIRE(parser.is_set("--all")); // --all is long form of -a
+// }
+
 TEST_CASE("ArgParser::arg_value() returns arg value if arg uses assignment", "[ArgParser]") {
     constexpr std::array ARGS = { "ProgramName", "-b=3" };
     ArgParser parser(static_cast<int>(ARGS.size()), ARGS.data());

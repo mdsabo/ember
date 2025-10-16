@@ -1,4 +1,8 @@
-add_library(ember-util STATIC src/ArgParser.cpp)
+add_library(ember-util 
+    STATIC 
+    src/ArgParser.cpp
+    src/Filesystem.cpp
+)
 target_include_directories(ember-util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR})
 
 add_executable(test-ember-util tests/test_arg_parser.cpp)

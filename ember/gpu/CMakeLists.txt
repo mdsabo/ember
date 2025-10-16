@@ -1,12 +1,14 @@
-find_package(Vulkan REQUIRED)
+find_package(Vulkan REQUIRED shaderc_combined SPIRV-Tools)
 
 add_library(ember-gpu
     STATIC
     src/GraphicsDevice.cpp
     src/Renderer.cpp
+    src/ShaderReflection.cpp
+    src/SPIRV.cpp
 )
 target_include_directories(ember-gpu PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR})
-target_link_libraries(ember-gpu Vulkan::Vulkan)
+target_link_libraries(ember-gpu ember-util Vulkan::Vulkan Vulkan::shaderc_combined SPIRV-Reflect)
 
 # add_executable(test-ember-gpu tests/test_dynamic_bitset.cpp)
 # target_include_directories(test-ember-gpu PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -14,5 +16,5 @@ target_link_libraries(ember-gpu Vulkan::Vulkan)
 # add_test(NAME test-ember-gpu COMMAND $<TARGET_FILE:test-ember-gpu>)
 
 add_executable(ember-gpu-compute-squares examples/compute_squares.cpp)
-target_include_directories(ember-gpu-compute-squares PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(ember-gpu-compute-squares PRIVATE ember-gpu)
+target_include_directories(ember-gpu-compute-squares PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR})
+target_link_libraries(ember-gpu-compute-squares PRIVATE ember-gpu ember-util)

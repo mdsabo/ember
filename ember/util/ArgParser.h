@@ -5,8 +5,6 @@
 
 namespace ember::util {
 
-    // ./program -opt1 --opt-2 -opt3 64 --opt-4 100 arg1 arg2
-
     class ArgParser {
     public:
         ArgParser(int argc, const char* const* argv);
