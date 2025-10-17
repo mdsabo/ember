@@ -1,7 +1,8 @@
-find_package(Vulkan REQUIRED shaderc_combined SPIRV-Tools)
+find_package(Vulkan REQUIRED shaderc_combined)
 
 add_library(ember-gpu
     STATIC
+    src/DescriptorPool.cpp
     src/GraphicsDevice.cpp
     src/Renderer.cpp
     src/ShaderReflection.cpp
