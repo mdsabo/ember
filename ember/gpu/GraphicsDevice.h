@@ -14,7 +14,8 @@ namespace ember::gpu {
         }
         ~GraphicsDevice();
 
-        std::pair<vk::Device, vk::Queue> create_device_and_queue() const;
+        std::tuple<vk::Device, vk::Queue, vk::CommandPool> create_render_objects() const;
+        
         inline const vk::PhysicalDeviceMemoryProperties& memory_properties() const { return m_memory_properties; }
     private:
         vk::Instance m_instance;

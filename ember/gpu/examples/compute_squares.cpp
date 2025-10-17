@@ -32,11 +32,21 @@ int main(int argc, const char* argv[]) {
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
     );
 
-    auto shader_module = renderer.create_shader_module("C:\\Users\\slabo\\Code\\ember\\ember\\gpu\\examples\\compute_squares.comp");
+    auto shader_path = std::filesystem::path(EMBER_SRC_DIR).append("ember/gpu/examples/compute_squares.comp");
+    auto shader_module = renderer.create_shader_module(shader_path);
     auto pipeline = renderer.create_compute_pipeline(shader_module);
 
-    
+    auto descriptor_sets = renderer.create_descriptor_sets(shader_module, 0, 1);
 
+    auto command_buffer = renderer.record_render_commands([&](CommandRecorder& recorder) {
+        recorder.bind_pipeline(pipeline);
+        recorder.bind_descriptor_sets(pipeline, 0, descriptor_sets);
+        recorder.dispatch_compute(1, 1, 1);
+    });
+
+    renderer.submit_command_buffer(command_buffer);
+
+    renderer.destroy_descriptor_sets(descriptor_sets);
     renderer.destroy_pipeline(pipeline);
     renderer.destroy_shader_module(shader_module);
     renderer.destroy_buffer(src_buffer);

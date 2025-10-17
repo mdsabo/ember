@@ -141,7 +141,7 @@ namespace ember::gpu {
         m_instance.destroy();
     }
 
-    std::pair<vk::Device, vk::Queue> GraphicsDevice::create_device_and_queue() const {
+    std::tuple<vk::Device, vk::Queue, vk::CommandPool> GraphicsDevice::create_render_objects() const {
         constexpr std::array QUEUE_PRIORTIES = { 1.0f };
         const vk::DeviceQueueCreateInfo queue_create_info{
             .queueFamilyIndex = m_queue_family_index,
@@ -165,7 +165,10 @@ namespace ember::gpu {
 
         auto device = m_physical_device.createDevice(device_create_info);
         auto queue = device.getQueue(m_queue_family_index, 0);
-        return std::make_pair(device, queue);
+        auto command_pool = device.createCommandPool(vk::CommandPoolCreateInfo {
+            .queueFamilyIndex = m_queue_family_index
+        });
+        return std::make_tuple(device, queue, command_pool);
     }
 
 }

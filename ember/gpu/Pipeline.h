@@ -4,13 +4,13 @@
 
 namespace ember::gpu {
 
-    enum class PipelineType {
-        Compute,
-        Graphics
-    };
-
     struct Pipeline {
-        PipelineType type;
+    // Maybe make it opaque to everything but the driver itself?
+    // But then it's not an aggregate type
+    //     friend class Renderer;
+    //     friend class CommandRecorder;
+    // private:
+        vk::PipelineBindPoint bind_point;
         vk::PipelineLayout layout;
         vk::Pipeline pipeline;
     };

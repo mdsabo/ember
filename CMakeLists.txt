@@ -5,6 +5,8 @@ include(CTest)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
+add_compile_definitions(EMBER_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+
 add_subdirectory(ember)
 # add_subdirectory(examples)
 
