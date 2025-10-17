@@ -3,7 +3,7 @@
 #include <memory>
 
 #include "AppInfo.h"
-#include "Vulkan.h"
+#include "src/Vulkan.h"
 
 namespace ember::gpu {
 
@@ -15,7 +15,7 @@ namespace ember::gpu {
         ~GraphicsDevice();
 
         std::tuple<vk::Device, vk::Queue, vk::CommandPool> create_render_objects() const;
-        
+
         inline const vk::PhysicalDeviceMemoryProperties& memory_properties() const { return m_memory_properties; }
     private:
         vk::Instance m_instance;

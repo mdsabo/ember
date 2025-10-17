@@ -8,7 +8,12 @@ add_library(ember-gpu
     src/ShaderReflection.cpp
     src/SPIRV.cpp
 )
-target_include_directories(ember-gpu PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR})
+target_include_directories(ember-gpu
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}
+)
 target_link_libraries(ember-gpu ember-util Vulkan::Vulkan Vulkan::shaderc_combined spirv-reflect-static)
 
 # add_executable(test-ember-gpu tests/test_dynamic_bitset.cpp)

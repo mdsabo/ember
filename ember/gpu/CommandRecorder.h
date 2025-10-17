@@ -1,8 +1,7 @@
 #pragma once
 
-#include "DescriptorSetChunk.h"
-#include "Pipeline.h"
-#include "Vulkan.h"
+#include "RenderObjects.h"
+#include "src/Vulkan.h"
 
 namespace ember::gpu {
 
@@ -13,7 +12,7 @@ namespace ember::gpu {
         void bind_pipeline(const Pipeline& pipeline);
 
         void bind_descriptor_sets(
-            const Pipeline& pipeline, 
+            const Pipeline& pipeline,
             uint32_t first_set,
             const DescriptorSetChunk& descriptor_sets
         );

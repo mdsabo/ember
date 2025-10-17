@@ -4,12 +4,9 @@
 #include <functional>
 #include <string_view>
 
-#include "Buffer.h"
 #include "CommandRecorder.h"
-#include "DescriptorSetChunk.h"
 #include "GraphicsDevice.h"
-#include "Pipeline.h"
-#include "ShaderModule.h"
+#include "RenderObjects.h"
 
 namespace ember::gpu {
 
@@ -27,7 +24,7 @@ namespace ember::gpu {
         void destroy_buffer(Buffer& buffer);
 
         DescriptorSetChunk create_descriptor_sets(ShaderModule& shader_module, uint32_t set_index, uint32_t descriptor_set_count);
-        void destroy_descriptor_sets(DescriptorSetChunk& descriptor_sets);
+        void destroy_descriptor_sets(ShaderModule& shader_module, DescriptorSetChunk& descriptor_sets);
 
         ShaderModule create_shader_module(const std::filesystem::path& path);
         void destroy_shader_module(ShaderModule& module);
@@ -40,7 +37,7 @@ namespace ember::gpu {
         vk::Device m_device;
         vk::Queue m_queue;
         vk::CommandPool m_command_pool;
-        
+
         vk::DeviceMemory allocate_memory(
             vk::DeviceSize size,
             vk::MemoryRequirements requirements,
@@ -48,10 +45,7 @@ namespace ember::gpu {
         );
 
 
-        std::vector<vk::DescriptorSetLayout> create_descriptor_set_layouts(
-            const std::vector<std::vector<vk::DescriptorSetLayoutBinding>>& descriptor_set_layout_bindings
-        );
-        std::vector<ShaderModule::DescriptorPool> create_descriptor_pools(
+        std::vector<ShaderModule::DescriptorSetAllocationInfo> create_descriptor_set_allocation_infos(
             const std::vector<std::vector<vk::DescriptorSetLayoutBinding>>& descriptor_set_layout_bindings
         );
 

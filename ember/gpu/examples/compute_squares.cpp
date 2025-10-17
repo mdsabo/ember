@@ -46,7 +46,7 @@ int main(int argc, const char* argv[]) {
 
     renderer.submit_command_buffer(command_buffer);
 
-    renderer.destroy_descriptor_sets(descriptor_sets);
+    renderer.destroy_descriptor_sets(shader_module, descriptor_sets);
     renderer.destroy_pipeline(pipeline);
     renderer.destroy_shader_module(shader_module);
     renderer.destroy_buffer(src_buffer);

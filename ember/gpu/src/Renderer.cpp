@@ -103,7 +103,7 @@ namespace ember::gpu {
         auto memory = allocate_memory(size, memory_requirements, properties);
         m_device.bindBufferMemory(buffer, memory, 0);
 
-        return Buffer{ size, buffer, memory};
+        return Buffer(size, buffer, memory);
     }
 
     void Renderer::destroy_buffer(Buffer& buffer) {
@@ -122,8 +122,9 @@ namespace ember::gpu {
         uint32_t set_index,
         uint32_t descriptor_set_count
     ) {
-        const auto layout = shader_module.descriptor_set_layouts.at(set_index);
-        const auto pool = shader_module.descriptor_pools.at(set_index).pool;
+        auto& dsai = shader_module.descriptor_set_allocation_infos.at(set_index);
+        const auto layout = dsai.layout;
+        const auto pool = dsai.pool;
 
         // We want to create N sets of the same descriptor set layout so we duplicate
         // the layout N times.  Vulkan will then create N sets with that layout.
@@ -134,14 +135,18 @@ namespace ember::gpu {
             .descriptorSetCount = descriptor_set_count,
             .pSetLayouts = layouts.data()
         };
-        
-        auto descriptor_sets = m_device.allocateDescriptorSets(allocate_info);
 
-        return DescriptorSetChunk{ descriptor_sets, pool };
+        auto descriptor_sets = m_device.allocateDescriptorSets(allocate_info);
+        dsai.allocated_sets += descriptor_set_count;
+        dsai.highwater_sets = std::max(dsai.allocated_sets, dsai.highwater_sets);
+
+        return DescriptorSetChunk(descriptor_sets, set_index);
     }
 
-    void Renderer::destroy_descriptor_sets(DescriptorSetChunk& descriptor_sets) {
-        m_device.freeDescriptorSets(descriptor_sets.pool, descriptor_sets.sets);
+    void Renderer::destroy_descriptor_sets(ShaderModule& shader_module, DescriptorSetChunk& descriptor_sets) {
+        auto& dsai = shader_module.descriptor_set_allocation_infos.at(descriptor_sets.set_index);
+        m_device.freeDescriptorSets(dsai.pool, descriptor_sets.sets);
+        dsai.allocated_sets -= descriptor_sets.sets.size();
         descriptor_sets.sets.resize(0);
     }
 
@@ -149,64 +154,55 @@ namespace ember::gpu {
     // SHADERS                                                                                  //
     //////////////////////////////////////////////////////////////////////////////////////////////
 
-    std::vector<vk::DescriptorSetLayout> Renderer::create_descriptor_set_layouts(
+    constexpr auto DEFAULT_MAX_DESCRIPTOR_SETS_PER_POOL = 32768;
+
+    std::vector<ShaderModule::DescriptorSetAllocationInfo> Renderer::create_descriptor_set_allocation_infos(
         const std::vector<std::vector<vk::DescriptorSetLayoutBinding>>& descriptor_set_layout_bindings
     ) {
-        std::vector<vk::DescriptorSetLayout> descriptor_set_layouts(descriptor_set_layout_bindings.size());
-        for (auto i = 0; i < descriptor_set_layout_bindings.size(); i++) {
-            const vk::DescriptorSetLayoutCreateInfo create_info{
-                .bindingCount = static_cast<uint32_t>(descriptor_set_layout_bindings[i].size()),
-                .pBindings = descriptor_set_layout_bindings[i].data()
-            };
-            descriptor_set_layouts[i] = m_device.createDescriptorSetLayout(create_info);
-        }
-        return descriptor_set_layouts;
-    }
-
-    constexpr auto DEFAULT_MAX_DESCRIPTOR_SETS = 32768;
-
-    std::vector<ShaderModule::DescriptorPool> Renderer::create_descriptor_pools(
-        const std::vector<std::vector<vk::DescriptorSetLayoutBinding>>& descriptor_set_layout_bindings
-    ) {
-        std::vector<ShaderModule::DescriptorPool> descriptor_pools;
+        std::vector<ShaderModule::DescriptorSetAllocationInfo> descriptor_set_allocation_infos(
+            descriptor_set_layout_bindings.size()
+        );
 
         for (auto set = 0; set < descriptor_set_layout_bindings.size(); set++) {
+            const auto& dslb = descriptor_set_layout_bindings[set];
+            auto& dsai = descriptor_set_allocation_infos[set];
+
+            const vk::DescriptorSetLayoutCreateInfo layout_create_info {
+                .bindingCount = static_cast<uint32_t>(dslb.size()),
+                .pBindings = dslb.data()
+            };
+            dsai.layout = m_device.createDescriptorSetLayout(layout_create_info);
 
             /*
             From the Vulkan Spec:
-                If multiple VkDescriptorPoolSize structures containing the same descriptor type appear in the 
+                If multiple VkDescriptorPoolSize structures containing the same descriptor type appear in the
                 pPoolSizes array then the pool will be created with enough storage for the total number of descriptors
                 of each type.
-            
+
             Therefore we can simply create a pool size structure for each entry in the binding array and let
             the driver handle coalescing them for us.
             */
-
-            std::vector<vk::DescriptorPoolSize> pool_sizes(descriptor_set_layout_bindings[set].size());
-            for (auto i = 0; i < descriptor_set_layout_bindings[set].size(); i++) {
-                const auto& binding = descriptor_set_layout_bindings[set][i];
+            std::vector<vk::DescriptorPoolSize> pool_sizes(dslb.size());
+            for (auto i = 0; i < dslb.size(); i++) {
+                const auto& binding = dslb[i];
                 pool_sizes[i].type = binding.descriptorType;
                 pool_sizes[i].descriptorCount = binding.descriptorCount;
             }
 
-            const vk::DescriptorPoolCreateInfo create_info {
+            const vk::DescriptorPoolCreateInfo pool_create_info {
                 .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-                .maxSets = DEFAULT_MAX_DESCRIPTOR_SETS,
+                .maxSets = DEFAULT_MAX_DESCRIPTOR_SETS_PER_POOL,
                 .poolSizeCount = static_cast<uint32_t>(pool_sizes.size()),
                 .pPoolSizes = pool_sizes.data()
             };
 
-            descriptor_pools.push_back(ShaderModule::DescriptorPool{
-                .pool = m_device.createDescriptorPool(create_info),
-                .allocated_sets = 0,
-                .max_sets = DEFAULT_MAX_DESCRIPTOR_SETS,
-                .highwater_sets = 0,
-            });
+            dsai.pool = m_device.createDescriptorPool(pool_create_info);
+            dsai.allocated_sets = 0;
+            dsai.max_sets = DEFAULT_MAX_DESCRIPTOR_SETS_PER_POOL;
+            dsai.highwater_sets = 0;
         }
-
-        return descriptor_pools;
+        return descriptor_set_allocation_infos;
     }
-
 
     ShaderModule Renderer::create_shader_module(const std::filesystem::path& path) {
         auto spirv = compile_glsl_to_spirv(path);
@@ -218,28 +214,27 @@ namespace ember::gpu {
 
         auto reflection = ShaderReflection(spirv);
         auto descriptor_set_layout_bindings = reflection.get_descriptor_set_bindings();
-        auto descriptor_set_layouts = create_descriptor_set_layouts(descriptor_set_layout_bindings);
         auto push_constant_ranges = reflection.get_push_constant_ranges();
 
-        return ShaderModule {
-            .shader_module = module,
-            .descriptor_set_layout_bindings = descriptor_set_layout_bindings,
-            .descriptor_set_layouts = descriptor_set_layouts,
-            .push_constant_ranges = push_constant_ranges,
-            .descriptor_pools = create_descriptor_pools(descriptor_set_layout_bindings)
-        };
+        auto descriptor_allocation_infos = create_descriptor_set_allocation_infos(descriptor_set_layout_bindings);
+
+        return ShaderModule(
+            module,
+            descriptor_set_layout_bindings,
+            descriptor_allocation_infos,
+            push_constant_ranges
+        );
     }
 
     void Renderer::destroy_shader_module(ShaderModule& module) {
-        for (auto& pool : module.descriptor_pools) {
-            assert(pool.allocated_sets == 0);
-            m_device.destroyDescriptorPool(pool.pool);
-            pool.pool = VK_NULL_HANDLE;
-        }
+        for (auto& alloc_info : module.descriptor_set_allocation_infos) {
+            assert(alloc_info.allocated_sets == 0);
 
-        for (auto& layout : module.descriptor_set_layouts) {
-            m_device.destroyDescriptorSetLayout(layout);
-            layout = VK_NULL_HANDLE;
+            m_device.destroyDescriptorPool(alloc_info.pool);
+            alloc_info.pool = VK_NULL_HANDLE;
+
+            m_device.destroyDescriptorSetLayout(alloc_info.layout);
+            alloc_info.layout = VK_NULL_HANDLE;
         }
 
         m_device.destroyShaderModule(module.shader_module);
@@ -251,9 +246,14 @@ namespace ember::gpu {
     //////////////////////////////////////////////////////////////////////////////////////////////
 
     vk::PipelineLayout Renderer::create_pipeline_layout(const ShaderModule& shader_module) {
+        std::vector<vk::DescriptorSetLayout> layouts(shader_module.descriptor_set_allocation_infos.size());
+        for (auto i = 0; i < shader_module.descriptor_set_allocation_infos.size(); i++) {
+            layouts[i] = shader_module.descriptor_set_allocation_infos[i].layout;
+        }
+
         const vk::PipelineLayoutCreateInfo create_info {
-            .setLayoutCount = static_cast<uint32_t>(shader_module.descriptor_set_layouts.size()),
-            .pSetLayouts = shader_module.descriptor_set_layouts.data(),
+            .setLayoutCount = static_cast<uint32_t>(layouts.size()),
+            .pSetLayouts = layouts.data(),
             .pushConstantRangeCount = static_cast<uint32_t>(shader_module.push_constant_ranges.size()),
             .pPushConstantRanges = shader_module.push_constant_ranges.data(),
         };
@@ -277,11 +277,7 @@ namespace ember::gpu {
             throw std::runtime_error("Failed to create compute pipeline!");
         }
 
-        return Pipeline{
-            .bind_point = vk::PipelineBindPoint::eCompute,
-            .layout = layout,
-            .pipeline = result.value
-        };
+        return Pipeline(vk::PipelineBindPoint::eCompute, layout, result.value);
     }
 
     void Renderer::destroy_pipeline(Pipeline& pipeline) {
