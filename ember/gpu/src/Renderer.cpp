@@ -42,22 +42,22 @@ namespace ember::gpu {
         return CommandBuffer(command_buffer);
     }
 
-    void Renderer::destroy_command_buffer(CommandBuffer& command_buffer) {
-        m_device.freeCommandBuffers(m_command_pool, command_buffer.cmd_buffer);
-        command_buffer.cmd_buffer = VK_NULL_HANDLE;
+    void Renderer::destroy_command_buffer(CommandBuffer&& command_buffer) {
+        m_device.freeCommandBuffers(m_command_pool, command_buffer);
+        command_buffer = VK_NULL_HANDLE;
     }
 
     Fence Renderer::submit_command_buffers(
-        std::vector<CommandBuffer> command_buffers,
-        const std::vector<Semaphore>& wait_semaphores,
-        const std::vector<Semaphore>& signal_sempahores
+        const ArrayProxy<CommandBuffer>& command_buffers,
+        const ArrayProxy<Semaphore>& wait_semaphores,
+        const ArrayProxy<Semaphore>& signal_sempahores
     ) {
         const vk::SubmitInfo submit_info {
             .waitSemaphoreCount = 0,
             .pWaitSemaphores = nullptr,
             .pWaitDstStageMask = nullptr,
-            .commandBufferCount = static_cast<uint32_t>(command_buffers.size()),
-            .pCommandBuffers = reinterpret_cast<const vk::CommandBuffer*>(command_buffers.data()), // SEE Fence
+            .commandBufferCount = command_buffers.size(),
+            .pCommandBuffers = command_buffers.data(),
             .signalSemaphoreCount = 0,
             .pSignalSemaphores = nullptr
         };
@@ -69,10 +69,10 @@ namespace ember::gpu {
 
     Fence Renderer::submit_command_buffer(
         CommandBuffer command_buffer,
-        const std::vector<Semaphore>& wait_semaphores,
-        const std::vector<Semaphore>& signal_sempahores
+        const ArrayProxy<Semaphore>& wait_semaphores,
+        const ArrayProxy<Semaphore>& signal_sempahores
     ) {
-        return submit_command_buffers({ command_buffer });
+        return submit_command_buffers(command_buffer, wait_semaphores, signal_sempahores);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -123,7 +123,7 @@ namespace ember::gpu {
         return Buffer(size, buffer, memory);
     }
 
-    void Renderer::destroy_buffer(Buffer& buffer) {
+    void Renderer::destroy_buffer(Buffer&& buffer) {
         m_device.freeMemory(buffer.memory);
         buffer.memory = VK_NULL_HANDLE;
         m_device.destroyBuffer(buffer.buffer);
@@ -144,15 +144,15 @@ namespace ember::gpu {
 
     void Renderer::bind_buffers(
         const ShaderModule& shader_module,
-        const DescriptorSetChunk& descriptor_sets, 
-        const DescriptorWrite& descriptor_write, 
-        const std::vector<BufferBindInfo>& buffers
+        const DescriptorSetChunk& descriptor_sets,
+        const DescriptorWrite& descriptor_write,
+        const ArrayProxy<BufferBindInfo>& buffers
     ) {
         std::vector<vk::DescriptorBufferInfo> buffer_infos(buffers.size());
         for (auto i = 0; i < buffers.size(); i++) {
-            buffer_infos[i].buffer = buffers[i].buffer.buffer;
-            buffer_infos[i].offset = buffers[i].offset;
-            buffer_infos[i].range = buffers[i].size;
+            buffer_infos[i].buffer = buffers.data()[i].buffer.buffer;
+            buffer_infos[i].offset = buffers.data()[i].offset;
+            buffer_infos[i].range = buffers.data()[i].size;
         }
 
         const vk::WriteDescriptorSet write_descriptor_set {
@@ -197,7 +197,7 @@ namespace ember::gpu {
         return DescriptorSetChunk(descriptor_sets, set_index);
     }
 
-    void Renderer::destroy_descriptor_sets(ShaderModule& shader_module, DescriptorSetChunk& descriptor_sets) {
+    void Renderer::destroy_descriptor_sets(ShaderModule& shader_module, DescriptorSetChunk&& descriptor_sets) {
         auto& dsai = shader_module.descriptor_set_allocation_infos.at(descriptor_sets.set_index);
         m_device.freeDescriptorSets(dsai.pool, descriptor_sets.sets);
         dsai.allocated_sets -= descriptor_sets.sets.size();
@@ -280,7 +280,7 @@ namespace ember::gpu {
         );
     }
 
-    void Renderer::destroy_shader_module(ShaderModule& module) {
+    void Renderer::destroy_shader_module(ShaderModule&& module) {
         for (auto& alloc_info : module.descriptor_set_allocation_infos) {
             assert(alloc_info.allocated_sets == 0);
 
@@ -334,7 +334,7 @@ namespace ember::gpu {
         return Pipeline(vk::PipelineBindPoint::eCompute, layout, result.value);
     }
 
-    void Renderer::destroy_pipeline(Pipeline& pipeline) {
+    void Renderer::destroy_pipeline(Pipeline&& pipeline) {
         m_device.destroyPipeline(pipeline.pipeline);
         pipeline.pipeline = VK_NULL_HANDLE;
         m_device.destroyPipelineLayout(pipeline.layout);
@@ -345,17 +345,17 @@ namespace ember::gpu {
     // Fences/Semaphores                                                                        //
     //////////////////////////////////////////////////////////////////////////////////////////////
 
-    bool Renderer::wait_for_fences(std::vector<Fence> fences, std::chrono::nanoseconds timeout) {
+    bool Renderer::wait_for_fences(const ArrayProxy<Fence>& fences, std::chrono::nanoseconds timeout) {
         auto result = m_device.waitForFences(
-            fences.size(), 
-            reinterpret_cast<const vk::Fence*>(fences.data()), // THIS ONLY WORKS BECAUSE Fence ONLY HAS A vk::Fence, IF THAT CHANGES THIS BREAKS
+            fences.size(),
+            fences.data(),
             VK_TRUE,
             timeout.count()
         );
 
         for (auto& fence : fences) {
-            m_device.destroyFence(fence.fence);
-            fence.fence = VK_NULL_HANDLE;
+            m_device.destroyFence(fence);
+            //fence = VK_NULL_HANDLE;
         }
 
         // FIXME: Should provide better handling of results in general
@@ -368,8 +368,8 @@ namespace ember::gpu {
         return Semaphore(semaphore);
     }
 
-    void Renderer::destroy_semaphore(Semaphore& semaphore) {
-        m_device.destroySemaphore(semaphore.semaphore);
-        semaphore.semaphore = VK_NULL_HANDLE;
+    void Renderer::destroy_semaphore(Semaphore&& semaphore) {
+        m_device.destroySemaphore(semaphore);
+        semaphore = VK_NULL_HANDLE;
     }
 }

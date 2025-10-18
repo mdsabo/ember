@@ -32,7 +32,7 @@ namespace ember::gpu {
         { }
     };
 
-    class [[no_discard]] Pipeline {
+    struct [[no_discard]] Pipeline {
         friend class Renderer;
         friend class CommandRecorder;
 
@@ -80,33 +80,7 @@ namespace ember::gpu {
         }
     };
 
-    class [[no_discard]] CommandBuffer {
-        friend class Renderer;
-
-        vk::CommandBuffer cmd_buffer;
-
-        CommandBuffer() = default;
-        CommandBuffer(vk::CommandBuffer cmd_buffer): cmd_buffer(cmd_buffer) { }
-    };
-
-    // Renderer::wait_for_fences RELIES ON THE FACT THAT THIS CLASS ONLY HAS A vk::Fence
-    // IF THAT CHANGES wait_for_fences WILL BREAK
-    class [[no_discard]] Fence {
-        friend class Renderer;
-
-        vk::Fence fence;
-
-        Fence() = default;
-        Fence(vk::Fence fence): fence(fence) { }
-    };
-
-    class [[no_discard]] Semaphore {
-        friend class Renderer;
-
-        vk::Semaphore semaphore;
-
-        Semaphore() = default;
-        Semaphore(vk::Semaphore semaphore): semaphore(semaphore) { }
-    };
-
+    using vk::CommandBuffer;
+    using vk::Fence;
+    using vk::Semaphore;
 }

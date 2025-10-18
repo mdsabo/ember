@@ -17,8 +17,8 @@ namespace ember::gpu {
         uint32_t binding_index = 0;
         union {
             uint32_t array_index = 0;
-            // If the descriptor binding identified by dstSet and dstBinding has a descriptor type of 
-            // VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK then dstArrayElement specifies the starting byte 
+            // If the descriptor binding identified by dstSet and dstBinding has a descriptor type of
+            // VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK then dstArrayElement specifies the starting byte
             // offset within the binding.
             uint32_t inline_uniform_block_byte_index;
         };
@@ -38,47 +38,124 @@ namespace ember::gpu {
         Renderer(std::shared_ptr<const GraphicsDevice> device);
         ~Renderer();
 
+        /// @brief Command buffer recording callback type
         using CommandRecordFn = std::function<void(CommandRecorder&)>;
-        CommandBuffer record_command_buffer(bool one_time_submit, const CommandRecordFn& fn);
-        void destroy_command_buffer(CommandBuffer& command_buffer);
-        Fence submit_command_buffers(
-            std::vector<CommandBuffer> command_buffers,
-            const std::vector<Semaphore>& wait_semaphores = {},
-            const std::vector<Semaphore>& signal_sempahores = {}
+
+        /// @brief Record a command buffer using a callback fn
+        /// @param one_time_submit Command buffer will be submitted one time and destroyed
+        /// @param fn Recoding callback
+        /// @return Finished command buffer
+        [[no_discard]] CommandBuffer record_command_buffer(bool one_time_submit, const CommandRecordFn& fn);
+
+        /// @brief Destroy a command buffer
+        /// @param command_buffer
+        void destroy_command_buffer(CommandBuffer&& command_buffer);
+
+        /// @brief Submit command buffers to the GPU
+        /// @param command_buffers Command buffers to submit
+        /// @param wait_semaphores Semaphores to wait on before commands are executed
+        /// @param signal_sempahores Semaphores to signal when commands complete
+        /// @return Fence indicating command buffers have finished
+        [[no_discard]] Fence submit_command_buffers(
+            const ArrayProxy<CommandBuffer>& command_buffers,
+            const ArrayProxy<Semaphore>& wait_semaphores = {},
+            const ArrayProxy<Semaphore>& signal_sempahores = {}
         );
-        Fence submit_command_buffer(
+        /// @brief Submit a command buffer to the GPU
+        /// @param command_buffers Command buffer to submit
+        /// @param wait_semaphores Semaphores to wait on before commands are executed
+        /// @param signal_sempahores Semaphores to signal when commands complete
+        /// @return Fence indicating command buffer has finished
+        [[no_discard]] Fence submit_command_buffer(
             CommandBuffer command_buffer,
-            const std::vector<Semaphore>& wait_semaphores = {},
-            const std::vector<Semaphore>& signal_sempahores = {}
+            const ArrayProxy<Semaphore>& wait_semaphores = {},
+            const ArrayProxy<Semaphore>& signal_sempahores = {}
         );
 
+        /// @brief Create a new buffer
+        /// @param size Size in bytes
+        /// @param usage Buffer usage
+        /// @param properties Memory properties
+        /// @return Allocated buffer
         Buffer create_buffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
-        void destroy_buffer(Buffer& buffer);
+
+        /// @brief Destroy a previously allocated buffer
+        /// @param buffer
+        void destroy_buffer(Buffer&& buffer);
+
+        /// @brief Read the contents of a buffer
+        /// @param dst Destination memory address
+        /// @param buffer Buffer to read
+        /// @param offset Offset within buffer
+        /// @param size Number of bytes to read
         void read_buffer(void* dst, const Buffer& buffer, vk::DeviceSize offset, vk::DeviceSize size) const;
+
+        /// @brief Write data to a buffer
+        /// @param buffer Buffer to be written
+        /// @param src Source data address
+        /// @param offset Offset within buffer
+        /// @param size Number of bytes to write
         void write_buffer(Buffer& buffer, void* src, vk::DeviceSize offset, vk::DeviceSize size);
+
+        /// @brief Bind buffers to descriptors for later use
+        /// @param shader_module Shader module of the descriptors
+        /// @param descriptor_sets Descriptor sets to bind to
+        /// @param descriptor_write Indicies within the descriptor set to write
+        /// @param buffers Buffers to bind
         void bind_buffers(
             const ShaderModule& shader_module,
-            const DescriptorSetChunk& descriptor_sets, 
-            const DescriptorWrite& descriptor_write, 
-            const std::vector<BufferBindInfo>& buffers
+            const DescriptorSetChunk& descriptor_sets,
+            const DescriptorWrite& descriptor_write,
+            const ArrayProxy<BufferBindInfo>& buffers
         );
 
+        /// @brief Create descriptor sets that can be used during shader execution
+        /// @param shader_module Target shader module
+        /// @param set_index Descriptor set index
+        /// @param descriptor_set_count Number of descriptor sets to create
+        /// @return Allocated block of descriptor sets
         DescriptorSetChunk create_descriptor_sets(ShaderModule& shader_module, uint32_t set_index, uint32_t descriptor_set_count);
-        void destroy_descriptor_sets(ShaderModule& shader_module, DescriptorSetChunk& descriptor_sets);
 
+        /// @brief Destory a block fo descriptor sets
+        /// @param shader_module Shader module of descriptor sets
+        /// @param descriptor_sets Descriptor sets to destroy
+        void destroy_descriptor_sets(ShaderModule& shader_module, DescriptorSetChunk&& descriptor_sets);
+
+        /// @brief Create a shader module from a given path
+        /// @param path Path to GLSL shader file
+        /// @return Created shader module
         ShaderModule create_shader_module(const std::filesystem::path& path);
-        void destroy_shader_module(ShaderModule& module);
 
+        /// @brief Destroy a shader module
+        /// @param module
+        void destroy_shader_module(ShaderModule&& module);
+
+        /// @brief Create a compute pipeline
+        /// @param shader_module Shader to be run by the pipeline
+        /// @param entry_point Name of the shader entry point (default: "main")
+        /// @return Created pipeline
         Pipeline create_compute_pipeline(const ShaderModule& shader_module, const std::string_view& entry_point = "main");
-        void destroy_pipeline(Pipeline& pipeline);
 
+        /// @brief Destroy a pipeline of any type
+        /// @param pipeline
+        void destroy_pipeline(Pipeline&& pipeline);
+
+        /// @brief Wait for a list of fences to complete
+        /// @param fences List of fences to wait on
+        /// @param timeout Wait timeout
+        /// @return true if all fences completed, false otherwise
         bool wait_for_fences(
-            std::vector<Fence> fences, 
+            const ArrayProxy<Fence>& fences,
             std::chrono::nanoseconds timeout = std::chrono::nanoseconds::max()
         );
 
-        Semaphore create_semaphore();
-        void destroy_semaphore(Semaphore& semaphore);
+        /// @brief Create a sempahore
+        /// @return Created sempahore
+        [[no_discard]] Semaphore create_semaphore();
+
+        /// @brief Destroy a semaphore
+        /// @param semaphore
+        void destroy_semaphore(Semaphore&& semaphore);
 
     private:
         std::shared_ptr<const GraphicsDevice> m_gpu;
@@ -93,7 +170,6 @@ namespace ember::gpu {
             vk::MemoryRequirements requirements,
             vk::MemoryPropertyFlags properties
         );
-
 
         std::vector<ShaderModule::DescriptorSetAllocationInfo> create_descriptor_set_allocation_infos(
             const std::vector<std::vector<vk::DescriptorSetLayoutBinding>>& descriptor_set_layout_bindings
