@@ -1,4 +1,5 @@
 find_package(Vulkan REQUIRED shaderc_combined)
+add_compile_definitions(EMBER_GPU_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_library(ember-gpu
     STATIC
@@ -16,15 +17,17 @@ target_include_directories(ember-gpu
 )
 target_link_libraries(ember-gpu ember-util Vulkan::Vulkan Vulkan::shaderc_combined spirv-reflect-static)
 
-# add_executable(test-ember-gpu tests/test_dynamic_bitset.cpp)
-# target_include_directories(test-ember-gpu PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-# target_link_libraries(test-ember-gpu PRIVATE ember-gpu Catch2::Catch2WithMain)
-# add_test(NAME test-ember-gpu COMMAND $<TARGET_FILE:test-ember-gpu>)
-
-if(EMBER_EXAMPLES)
-    add_compile_definitions(EMBER_GPU_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
-
-    add_executable(ember-gpu-compute-squares examples/compute_squares.cpp)
-    target_include_directories(ember-gpu-compute-squares PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR})
-    target_link_libraries(ember-gpu-compute-squares PRIVATE ember-gpu ember-util)
+if(EMBER_TESTS)
+    add_executable(ember-gpu.test.compute-squares tests/compute_squares.cpp)
+    target_include_directories(ember-gpu.test.compute-squares PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR})
+    target_link_libraries(ember-gpu.test.compute-squares PRIVATE ember-gpu ember-util)
+    add_test(NAME ember-gpu.test.compute-squares COMMAND $<TARGET_FILE:ember-gpu.test.compute-squares>)
+# add_executable(ember-gpu.test tests/test_dynamic_bitset.cpp)
+# target_include_directories(ember-gpu.test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+# target_link_libraries(ember-gpu.test PRIVATE ember-gpu Catch2::Catch2WithMain)
+# add_test(NAME ember-gpu.test COMMAND $<TARGET_FILE:ember-gpu.test>)
 endif()
+
+# if(EMBER_EXAMPLES)
+    
+# endif()

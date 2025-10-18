@@ -6,7 +6,7 @@
 
 namespace ember::gpu {
 
-    Renderer::Renderer(std::shared_ptr<const GraphicsDevice> device): m_gpu(device) {
+    Renderer::Renderer(std::shared_ptr<const GraphicsDevice> device): m_gpu(device), m_allocated_command_buffers(0) {
         auto [vk_device, queue, command_pool] = device->create_render_objects();
         m_device = vk_device;
         m_queue = queue;
@@ -22,41 +22,57 @@ namespace ember::gpu {
     // Command Buffers                                                                          //
     //////////////////////////////////////////////////////////////////////////////////////////////
 
-    vk::CommandBuffer Renderer::record_render_commands(const CommandRecordFn& fn) {
+    CommandBuffer Renderer::record_command_buffer(bool one_time_submit, const CommandRecordFn& fn) {
         const vk::CommandBufferAllocateInfo allocate_info {
             .commandPool = m_command_pool,
             .level = vk::CommandBufferLevel::ePrimary,
             .commandBufferCount = 1,
         };
         auto command_buffer = m_device.allocateCommandBuffers(allocate_info).front();
-        command_buffer.begin(vk::CommandBufferBeginInfo{
-            .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
-        });
+        m_allocated_command_buffers++;
+
+        vk::CommandBufferBeginInfo begin_info{};
+        if (one_time_submit) begin_info.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+        command_buffer.begin(begin_info);
 
         auto recorder = CommandRecorder(command_buffer);
         fn(recorder);
+
         command_buffer.end();
-        return command_buffer;
+        return CommandBuffer(command_buffer);
     }
 
-    void Renderer::submit_command_buffers(const std::vector<const vk::CommandBuffer>& command_buffers) {
+    void Renderer::destroy_command_buffer(CommandBuffer& command_buffer) {
+        m_device.freeCommandBuffers(m_command_pool, command_buffer.cmd_buffer);
+        command_buffer.cmd_buffer = VK_NULL_HANDLE;
+    }
+
+    Fence Renderer::submit_command_buffers(
+        std::vector<CommandBuffer> command_buffers,
+        const std::vector<Semaphore>& wait_semaphores,
+        const std::vector<Semaphore>& signal_sempahores
+    ) {
         const vk::SubmitInfo submit_info {
             .waitSemaphoreCount = 0,
             .pWaitSemaphores = nullptr,
             .pWaitDstStageMask = nullptr,
             .commandBufferCount = static_cast<uint32_t>(command_buffers.size()),
-            .pCommandBuffers = command_buffers.data(),
+            .pCommandBuffers = reinterpret_cast<const vk::CommandBuffer*>(command_buffers.data()), // SEE Fence
             .signalSemaphoreCount = 0,
             .pSignalSemaphores = nullptr
         };
 
-        m_queue.submit(submit_info);
-
-        m_device.freeCommandBuffers(m_command_pool, command_buffers);
+        auto fence = m_device.createFence({});
+        m_queue.submit(submit_info, fence);
+        return Fence(fence);
     }
 
-    void Renderer::submit_command_buffer(const vk::CommandBuffer command_buffer) {
-        submit_command_buffers({ command_buffer });
+    Fence Renderer::submit_command_buffer(
+        CommandBuffer command_buffer,
+        const std::vector<Semaphore>& wait_semaphores,
+        const std::vector<Semaphore>& signal_sempahores
+    ) {
+        return submit_command_buffers({ command_buffer });
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -112,6 +128,43 @@ namespace ember::gpu {
         buffer.memory = VK_NULL_HANDLE;
         m_device.destroyBuffer(buffer.buffer);
         buffer.buffer = VK_NULL_HANDLE;
+    }
+
+    void Renderer::read_buffer(void* dst, const Buffer& buffer, vk::DeviceSize offset, vk::DeviceSize size) const {
+        auto src = m_device.mapMemory(buffer.memory, offset, size);
+        memcpy(dst, src, size);
+        m_device.unmapMemory(buffer.memory);
+    }
+
+    void Renderer::write_buffer(Buffer& buffer, void* src, vk::DeviceSize offset, vk::DeviceSize size) {
+        auto dst = m_device.mapMemory(buffer.memory, offset, size);
+        memcpy(dst, src, size);
+        m_device.unmapMemory(buffer.memory);
+    }
+
+    void Renderer::bind_buffers(
+        const ShaderModule& shader_module,
+        const DescriptorSetChunk& descriptor_sets, 
+        const DescriptorWrite& descriptor_write, 
+        const std::vector<BufferBindInfo>& buffers
+    ) {
+        std::vector<vk::DescriptorBufferInfo> buffer_infos(buffers.size());
+        for (auto i = 0; i < buffers.size(); i++) {
+            buffer_infos[i].buffer = buffers[i].buffer.buffer;
+            buffer_infos[i].offset = buffers[i].offset;
+            buffer_infos[i].range = buffers[i].size;
+        }
+
+        const vk::WriteDescriptorSet write_descriptor_set {
+            .dstSet = descriptor_sets.sets.at(descriptor_write.set_index),
+            .dstBinding = descriptor_write.binding_index,
+            .dstArrayElement = descriptor_write.array_index,
+            .descriptorCount = static_cast<uint32_t>(buffers.size()),
+            .descriptorType = shader_module.get_descriptor_type(descriptor_sets.set_index, descriptor_write.binding_index),
+            .pBufferInfo = buffer_infos.data(),
+        };
+
+        m_device.updateDescriptorSets(write_descriptor_set, {});
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -286,5 +339,37 @@ namespace ember::gpu {
         pipeline.pipeline = VK_NULL_HANDLE;
         m_device.destroyPipelineLayout(pipeline.layout);
         pipeline.layout = VK_NULL_HANDLE;
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Fences/Semaphores                                                                        //
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    bool Renderer::wait_for_fences(std::vector<Fence> fences, std::chrono::nanoseconds timeout) {
+        auto result = m_device.waitForFences(
+            fences.size(), 
+            reinterpret_cast<const vk::Fence*>(fences.data()), // THIS ONLY WORKS BECAUSE Fence ONLY HAS A vk::Fence, IF THAT CHANGES THIS BREAKS
+            VK_TRUE,
+            timeout.count()
+        );
+
+        for (auto& fence : fences) {
+            m_device.destroyFence(fence.fence);
+            fence.fence = VK_NULL_HANDLE;
+        }
+
+        // FIXME: Should provide better handling of results in general
+        return (result == vk::Result::eSuccess);
+    }
+
+
+    Semaphore Renderer::create_semaphore() {
+        auto semaphore = m_device.createSemaphore({});
+        return Semaphore(semaphore);
+    }
+
+    void Renderer::destroy_semaphore(Semaphore& semaphore) {
+        m_device.destroySemaphore(semaphore.semaphore);
+        semaphore.semaphore = VK_NULL_HANDLE;
     }
 }

@@ -9,6 +9,9 @@ namespace ember::gpu {
     public:
         CommandRecorder(vk::CommandBuffer& command_buffer);
 
+        using BufferCopy = vk::BufferCopy;
+        void copy_buffer(const Buffer& dst, const Buffer& src, const std::vector<BufferCopy>& copies = {});
+
         void bind_pipeline(const Pipeline& pipeline);
 
         void bind_descriptor_sets(
