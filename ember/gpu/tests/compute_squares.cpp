@@ -1,5 +1,4 @@
 #include "Renderer.h"
-
 #include "ember/util/ArgParser.h"
 
 using namespace ember::gpu;
@@ -56,7 +55,7 @@ int main(int argc, const char* argv[]) {
     auto descriptor_sets = renderer.create_descriptor_sets(shader_module, 0, 1);
     renderer.bind_buffers(shader_module, descriptor_sets, {}, { src_gpu_buffer, dst_gpu_buffer });
 
-    auto command_buffer = renderer.record_command_buffer(true, [&](CommandRecorder& recorder) {
+    renderer.record_command_buffer([&](CommandRecorder& recorder) {
         recorder.copy_buffer(src_gpu_buffer, src_host_buffer);
         recorder.bind_pipeline(pipeline);
         recorder.bind_descriptor_sets(pipeline, 0, descriptor_sets);
@@ -64,14 +63,9 @@ int main(int argc, const char* argv[]) {
         recorder.copy_buffer(dst_host_buffer, dst_gpu_buffer);
     });
 
-    auto fence = renderer.submit_command_buffer(command_buffer);
-
-    renderer.wait_for_fences({ fence });
-
     std::vector<uint32_t> squared(NUM_ELEMENTS);
     renderer.read_buffer(squared.data(), dst_host_buffer, 0, BUFFER_SIZE);
 
-    renderer.destroy_command_buffer(std::move(command_buffer));
     renderer.destroy_descriptor_sets(shader_module, std::move(descriptor_sets));
     renderer.destroy_pipeline(std::move(pipeline));
     renderer.destroy_shader_module(std::move(shader_module));

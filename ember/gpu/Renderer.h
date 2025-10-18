@@ -43,9 +43,13 @@ namespace ember::gpu {
 
         /// @brief Record a command buffer using a callback fn
         /// @param one_time_submit Command buffer will be submitted one time and destroyed
-        /// @param fn Recoding callback
+        /// @param fn Recording callback
         /// @return Finished command buffer
-        [[no_discard]] CommandBuffer record_command_buffer(bool one_time_submit, const CommandRecordFn& fn);
+        [[no_discard]] CommandBuffer record_command_buffer(const CommandRecordFn& fn);
+
+        /// @brief Record and submit a command buffer
+        /// @param fn Recording callback
+        void record_submit_command_buffer(const CommandRecordFn& fn);
 
         /// @brief Destroy a command buffer
         /// @param command_buffer
@@ -109,6 +113,30 @@ namespace ember::gpu {
             const ArrayProxy<BufferBindInfo>& buffers
         );
 
+        struct ImageCreateInfo {
+            vk::ImageType type;
+            vk::Format format;
+            vk::Extent3D extent;
+            vk::ImageUsageFlags usage;
+            vk::ImageLayout layout;
+            vk::MemoryPropertyFlags memory_properties;
+        };
+        Image create_image(const ImageCreateInfo& image_info);
+        void destroy_image(Image&& image);
+        void read_image(void* dst, const Image& image);
+        /// @brief Bind images to descriptors for later use
+        /// @param shader_module Shader module of the descriptors
+        /// @param descriptor_sets Descriptor sets to bind to
+        /// @param descriptor_write Indicies within the descriptor set to write
+        /// @param buffers Images to bind
+        void bind_images(
+            const ShaderModule& shader_module,
+            const DescriptorSetChunk& descriptor_sets,
+            const DescriptorWrite& descriptor_write,
+            const ArrayProxy<Image>& images
+        );
+        void transition_image_layout(Image& image, vk::ImageLayout new_layout);
+
         /// @brief Create descriptor sets that can be used during shader execution
         /// @param shader_module Target shader module
         /// @param set_index Descriptor set index
@@ -166,7 +194,6 @@ namespace ember::gpu {
         unsigned int m_allocated_command_buffers;
 
         vk::DeviceMemory allocate_memory(
-            vk::DeviceSize size,
             vk::MemoryRequirements requirements,
             vk::MemoryPropertyFlags properties
         );
@@ -176,6 +203,10 @@ namespace ember::gpu {
         );
 
         vk::PipelineLayout create_pipeline_layout(const ShaderModule& shader_module);
+
+        vk::CommandBuffer allocate_command_buffer(
+            vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary
+        );
     };
 
 }

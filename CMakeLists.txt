@@ -21,3 +21,9 @@ add_subdirectory(third_party/eigen)
 set(SPIRV_REFLECT_EXECUTABLE OFF)
 set(SPIRV_REFLECT_STATIC_LIB ON)
 add_subdirectory(third_party/SPIRV-Reflect)
+
+add_library(stb INTERFACE)
+target_include_directories(stb INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> # ???
+)

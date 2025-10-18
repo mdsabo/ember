@@ -22,24 +22,42 @@ namespace ember::gpu {
     // Command Buffers                                                                          //
     //////////////////////////////////////////////////////////////////////////////////////////////
 
-    CommandBuffer Renderer::record_command_buffer(bool one_time_submit, const CommandRecordFn& fn) {
+    vk::CommandBuffer Renderer::allocate_command_buffer(vk::CommandBufferLevel level) {
         const vk::CommandBufferAllocateInfo allocate_info {
             .commandPool = m_command_pool,
-            .level = vk::CommandBufferLevel::ePrimary,
+            .level = level,
             .commandBufferCount = 1,
         };
-        auto command_buffer = m_device.allocateCommandBuffers(allocate_info).front();
         m_allocated_command_buffers++;
 
-        vk::CommandBufferBeginInfo begin_info{};
-        if (one_time_submit) begin_info.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
-        command_buffer.begin(begin_info);
+        return m_device.allocateCommandBuffers(allocate_info).front();
+    }
+
+    // CommandBuffer Renderer::record_command_buffer(const CommandRecordFn& fn) {
+    //     auto command_buffer = allocate_command_buffer();
+
+    //     command_buffer.begin({});
+
+    //     auto recorder = CommandRecorder(command_buffer);
+    //     fn(recorder);
+
+    //     command_buffer.end();
+    //     return CommandBuffer(command_buffer);
+    // }
+
+    void Renderer::record_submit_command_buffer(const CommandRecordFn& fn) {
+        auto command_buffer = allocate_command_buffer();
+
+        command_buffer.begin({ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
 
         auto recorder = CommandRecorder(command_buffer);
         fn(recorder);
 
         command_buffer.end();
-        return CommandBuffer(command_buffer);
+
+        auto fence = submit_command_buffer(command_buffer);
+        wait_for_fences({ fence });
+        destroy_command_buffer(std::move(command_buffer));
     }
 
     void Renderer::destroy_command_buffer(CommandBuffer&& command_buffer) {
@@ -94,7 +112,7 @@ namespace ember::gpu {
         }
     } // namespace
 
-    vk::DeviceMemory Renderer::allocate_memory(vk::DeviceSize size, vk::MemoryRequirements requirements, vk::MemoryPropertyFlags properties) {
+    vk::DeviceMemory Renderer::allocate_memory(vk::MemoryRequirements requirements, vk::MemoryPropertyFlags properties) {
         auto memory_type_index = find_memory_type_index(
             m_gpu->memory_properties(),
             properties,
@@ -102,8 +120,8 @@ namespace ember::gpu {
         );
 
         const vk::MemoryAllocateInfo alloc_info{
-            .allocationSize = size,
-            .memoryTypeIndex = memory_type_index
+            .allocationSize = requirements.size,
+            .memoryTypeIndex = memory_type_index,
         };
         return m_device.allocateMemory(alloc_info);
     }
@@ -117,7 +135,7 @@ namespace ember::gpu {
 
         auto buffer = m_device.createBuffer(buffer_create_info);
         auto memory_requirements = m_device.getBufferMemoryRequirements(buffer);
-        auto memory = allocate_memory(size, memory_requirements, properties);
+        auto memory = allocate_memory(memory_requirements, properties);
         m_device.bindBufferMemory(buffer, memory, 0);
 
         return Buffer(size, buffer, memory);
@@ -159,12 +177,125 @@ namespace ember::gpu {
             .dstSet = descriptor_sets.sets.at(descriptor_write.set_index),
             .dstBinding = descriptor_write.binding_index,
             .dstArrayElement = descriptor_write.array_index,
-            .descriptorCount = static_cast<uint32_t>(buffers.size()),
+            .descriptorCount = buffers.size(),
             .descriptorType = shader_module.get_descriptor_type(descriptor_sets.set_index, descriptor_write.binding_index),
             .pBufferInfo = buffer_infos.data(),
         };
 
         m_device.updateDescriptorSets(write_descriptor_set, {});
+    }
+
+    namespace {
+        constexpr vk::ImageSubresourceRange IMAGE_WHOLE_SUBRESOURCE_RANGE(vk::ImageAspectFlags aspect_mask) {
+            return vk::ImageSubresourceRange {
+                .aspectMask = aspect_mask,
+                .baseMipLevel = 0,
+                .levelCount = vk::RemainingMipLevels,
+                .baseArrayLayer = 0,
+                .layerCount = vk::RemainingArrayLayers
+            };
+        }
+    }
+
+    Image Renderer::create_image(const ImageCreateInfo& image_info) {
+        const vk::ImageCreateInfo image_create_info {
+            .imageType = image_info.type,
+            .format = image_info.format,
+            .extent = image_info.extent,
+            .mipLevels = 1,
+            .arrayLayers = 1,
+            .samples = vk::SampleCountFlagBits::e1,
+            .tiling = vk::ImageTiling::eLinear,
+            .usage = image_info.usage,
+            .sharingMode = vk::SharingMode::eExclusive,
+            .initialLayout = vk::ImageLayout::eUndefined,
+        };
+        auto image = m_device.createImage(image_create_info);
+        auto memory_requirements = m_device.getImageMemoryRequirements(image);
+        auto memory = allocate_memory(memory_requirements, image_info.memory_properties);
+        m_device.bindImageMemory(image, memory, 0);
+
+        const vk::ImageViewCreateInfo view_create_info {
+            .image = image,
+            .viewType = vk::ImageViewType::e2D, // FIXME
+            .format = image_info.format,
+            .components = vk::ComponentMapping {
+                .r = vk::ComponentSwizzle::eR,
+                .g = vk::ComponentSwizzle::eG,
+                .b = vk::ComponentSwizzle::eB,
+                .a = vk::ComponentSwizzle::eA,
+            },
+            .subresourceRange = IMAGE_WHOLE_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor),
+        };
+        auto view = m_device.createImageView(view_create_info);
+
+        auto res = Image(image_info.extent, vk::ImageLayout::eUndefined, image, view, memory);
+        transition_image_layout(res, image_info.layout);
+
+        return res;
+    }
+
+    void Renderer::destroy_image(Image&& image) {
+        m_device.destroyImageView(image.view);
+        image.view = VK_NULL_HANDLE;
+        m_device.freeMemory(image.memory);
+        image.memory = VK_NULL_HANDLE;
+        m_device.destroyImage(image.image);
+        image.image = VK_NULL_HANDLE;
+    }
+
+    void Renderer::read_image(void* dst, const Image& image) {
+        auto properties = m_device.getImageMemoryRequirements(image.image);
+        auto src = m_device.mapMemory(image.memory, 0, properties.size);
+        memcpy(dst, src, properties.size);
+        m_device.unmapMemory(image.memory);
+    }
+
+    void Renderer::bind_images(
+        const ShaderModule& shader_module,
+        const DescriptorSetChunk& descriptor_sets,
+        const DescriptorWrite& descriptor_write,
+        const ArrayProxy<Image>& images
+    ) {
+        std::vector<vk::DescriptorImageInfo> image_infos(images.size());
+        for (auto i = 0; i < images.size(); i++) {
+            image_infos[i].imageView = images.data()[i].view;
+            image_infos[i].imageLayout = vk::ImageLayout::eGeneral;
+        }
+
+        const vk::WriteDescriptorSet write_descriptor_set {
+            .dstSet = descriptor_sets.sets.at(descriptor_write.set_index),
+            .dstBinding = descriptor_write.binding_index,
+            .dstArrayElement = descriptor_write.array_index,
+            .descriptorCount = images.size(),
+            .descriptorType = shader_module.get_descriptor_type(descriptor_sets.set_index, descriptor_write.binding_index),
+            .pImageInfo = image_infos.data(),
+        };
+
+        m_device.updateDescriptorSets(write_descriptor_set, {});
+    }
+
+    void Renderer::transition_image_layout(Image& image, vk::ImageLayout new_layout) {
+        record_submit_command_buffer([&](CommandRecorder& recorder) {
+            const vk::ImageMemoryBarrier image_memory_barrier {
+                .dstAccessMask = vk::AccessFlagBits::eTransferWrite,
+                .oldLayout = image.layout,
+                .newLayout = new_layout,
+                .srcQueueFamilyIndex = m_gpu->queue_family_index(),
+                .dstQueueFamilyIndex = m_gpu->queue_family_index(),
+                .image = image.image,
+                .subresourceRange = IMAGE_WHOLE_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
+            };
+
+            recorder.pipeline_barrier(
+                vk::PipelineStageFlagBits::eTopOfPipe,
+                vk::PipelineStageFlagBits::eTransfer,
+                {},
+                {},
+                image_memory_barrier
+            );
+        });
+        image.layout = new_layout;
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////

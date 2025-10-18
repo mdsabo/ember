@@ -1,0 +1,20 @@
+#version 450
+
+layout(set = 0, binding = 0) readonly buffer VertexBuffer {
+    vec2 vertices[];
+};
+
+layout(set = 0, binding = 1, rgba8ui) uniform uimage2D Image;
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+void main() {
+    uvec2 image_size = imageSize(Image);
+    const uvec2 rg = 255 * gl_GlobalInvocationID.xy / image_size;
+
+    const float max_distance = distance(ivec2(0, 0), image_size/2);
+    const float pixel_distance = distance(gl_GlobalInvocationID.xy, image_size/2);
+    uint b = uint((1.0 - pixel_distance/max_distance) * 255);
+
+    imageStore(Image, ivec2(gl_GlobalInvocationID.xy), uvec4(rg.x, rg.g, b, 255));
+}

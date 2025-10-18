@@ -29,14 +29,15 @@ namespace ember::gpu {
         auto shader_kind = file_shader_kind(path);
 
         shaderc::CompileOptions options;
+        options.SetGenerateDebugInfo();
         if (optimize) options.SetOptimizationLevel(shaderc_optimization_level_size);
-        
+
         shaderc::Compiler compiler;
         auto filename = path.filename().string();
         auto spv = compiler.CompileGlslToSpv(
-            source_text, 
-            shader_kind, 
-            filename.c_str(), 
+            source_text,
+            shader_kind,
+            filename.c_str(),
             options
         );
 

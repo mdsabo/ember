@@ -19,6 +19,28 @@ namespace ember::gpu {
         { }
     };
 
+    class [[no_discard]] Image {
+        friend class Renderer;
+        friend class CommandRecorder;
+
+        vk::Extent3D extent;
+        vk::ImageLayout layout;
+        vk::Image image;
+        vk::ImageView view;
+        vk::DeviceMemory memory;
+
+        Image() = default;
+        Image(
+            vk::Extent3D extent,
+            vk::ImageLayout layout,
+            vk::Image image,
+            vk::ImageView view,
+            vk::DeviceMemory memory
+        ):
+            extent(extent), layout(layout), image(image), view(view), memory(memory)
+        { }
+    };
+
     class [[no_discard]] DescriptorSetChunk {
         friend class Renderer;
         friend class CommandRecorder;
