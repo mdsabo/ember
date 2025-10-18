@@ -35,6 +35,7 @@ namespace ember::gpu {
 
         auto recorder = CommandRecorder(command_buffer);
         fn(recorder);
+        command_buffer.end();
         return command_buffer;
     }
 

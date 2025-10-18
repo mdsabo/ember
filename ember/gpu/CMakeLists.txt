@@ -21,6 +21,10 @@ target_link_libraries(ember-gpu ember-util Vulkan::Vulkan Vulkan::shaderc_combin
 # target_link_libraries(test-ember-gpu PRIVATE ember-gpu Catch2::Catch2WithMain)
 # add_test(NAME test-ember-gpu COMMAND $<TARGET_FILE:test-ember-gpu>)
 
-add_executable(ember-gpu-compute-squares examples/compute_squares.cpp)
-target_include_directories(ember-gpu-compute-squares PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR})
-target_link_libraries(ember-gpu-compute-squares PRIVATE ember-gpu ember-util)
+if(EMBER_EXAMPLES)
+    add_compile_definitions(EMBER_GPU_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+
+    add_executable(ember-gpu-compute-squares examples/compute_squares.cpp)
+    target_include_directories(ember-gpu-compute-squares PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR})
+    target_link_libraries(ember-gpu-compute-squares PRIVATE ember-gpu ember-util)
+endif()

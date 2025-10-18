@@ -2,13 +2,18 @@ cmake_minimum_required(VERSION 4.0)
 project(ember VERSION 0.0.1)
 include(CTest)
 
+option(EMBER_TESTS "Build ember tests" ON)
+option(EMBER_EXAMPLES "Build ember example programs" ON)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
-add_compile_definitions(EMBER_SRC_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 add_subdirectory(ember)
+
+if(EMBER_EXAMPLES)
 # add_subdirectory(examples)
+endif()
 
 add_subdirectory(third_party/Catch2)
 add_subdirectory(third_party/eigen)

@@ -32,7 +32,7 @@ int main(int argc, const char* argv[]) {
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
     );
 
-    auto shader_path = std::filesystem::path(EMBER_SRC_DIR).append("ember/gpu/examples/compute_squares.comp");
+    auto shader_path = std::filesystem::path(EMBER_GPU_DIR).append("examples/compute_squares.comp");
     auto shader_module = renderer.create_shader_module(shader_path);
     auto pipeline = renderer.create_compute_pipeline(shader_module);
 
