@@ -7,7 +7,7 @@ namespace ember::gpu {
 
     class CommandRecorder {
     public:
-        CommandRecorder(CommandBuffer& command_buffer);
+        CommandRecorder(CommandBuffer& command_buffer, uint32_t queue_family_index);
 
         void pipeline_barrier(
             vk::PipelineStageFlags src_stage_mask,
@@ -33,6 +33,7 @@ namespace ember::gpu {
 
     private:
         CommandBuffer& m_command_buffer;
+        uint32_t m_queue_family_index;
     };
 
 }

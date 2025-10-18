@@ -45,19 +45,10 @@ namespace ember::gpu {
     //     return CommandBuffer(command_buffer);
     // }
 
-    void Renderer::record_submit_command_buffer(const CommandRecordFn& fn) {
+    CommandBuffer Renderer::create_command_buffer(vk::CommandBufferUsageFlags usage) {
         auto command_buffer = allocate_command_buffer();
-
-        command_buffer.begin({ .flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
-
-        auto recorder = CommandRecorder(command_buffer);
-        fn(recorder);
-
-        command_buffer.end();
-
-        auto fence = submit_command_buffer(command_buffer);
-        wait_for_fences({ fence });
-        destroy_command_buffer(std::move(command_buffer));
+        command_buffer.begin({ .flags = usage });
+        return command_buffer;
     }
 
     void Renderer::destroy_command_buffer(CommandBuffer&& command_buffer) {
@@ -65,11 +56,28 @@ namespace ember::gpu {
         command_buffer = VK_NULL_HANDLE;
     }
 
+    void Renderer::record_command_buffer(CommandBuffer& command_buffer, const CommandRecordFn& fn) {
+        auto recorder = CommandRecorder(command_buffer, m_gpu->queue_family_index());
+        fn(recorder);
+    }
+
+    void Renderer::record_submit_command_buffer(const CommandRecordFn& fn) {
+        auto command_buffer = create_command_buffer();
+        record_command_buffer(command_buffer, fn);
+        auto fence = submit_command_buffer(command_buffer);
+        wait_for_fences({ fence });
+        destroy_command_buffer(std::move(command_buffer));
+    }
+
     Fence Renderer::submit_command_buffers(
         const ArrayProxy<CommandBuffer>& command_buffers,
         const ArrayProxy<Semaphore>& wait_semaphores,
         const ArrayProxy<Semaphore>& signal_sempahores
     ) {
+        for (auto& cmdbuf : command_buffers) {
+            cmdbuf.end();
+        }
+
         const vk::SubmitInfo submit_info {
             .waitSemaphoreCount = 0,
             .pWaitSemaphores = nullptr,
@@ -230,7 +238,10 @@ namespace ember::gpu {
         auto view = m_device.createImageView(view_create_info);
 
         auto res = Image(image_info.extent, vk::ImageLayout::eUndefined, image, view, memory);
-        transition_image_layout(res, image_info.layout);
+
+        record_submit_command_buffer([&res, &image_info](CommandRecorder& recorder) {
+            recorder.transition_image_layout(res, image_info.layout);
+        });
 
         return res;
     }
@@ -273,29 +284,6 @@ namespace ember::gpu {
         };
 
         m_device.updateDescriptorSets(write_descriptor_set, {});
-    }
-
-    void Renderer::transition_image_layout(Image& image, vk::ImageLayout new_layout) {
-        record_submit_command_buffer([&](CommandRecorder& recorder) {
-            const vk::ImageMemoryBarrier image_memory_barrier {
-                .dstAccessMask = vk::AccessFlagBits::eTransferWrite,
-                .oldLayout = image.layout,
-                .newLayout = new_layout,
-                .srcQueueFamilyIndex = m_gpu->queue_family_index(),
-                .dstQueueFamilyIndex = m_gpu->queue_family_index(),
-                .image = image.image,
-                .subresourceRange = IMAGE_WHOLE_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
-            };
-
-            recorder.pipeline_barrier(
-                vk::PipelineStageFlagBits::eTopOfPipe,
-                vk::PipelineStageFlagBits::eTransfer,
-                {},
-                {},
-                image_memory_barrier
-            );
-        });
-        image.layout = new_layout;
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////

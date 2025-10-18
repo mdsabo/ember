@@ -80,15 +80,13 @@ int main(int argc, const char* argv[]) {
     renderer.bind_buffers(shader_module, descriptor_sets, {}, { vertex_buffer });
     renderer.bind_images(shader_module, descriptor_sets, { .binding_index = 1 }, { output_image });
 
+    auto command_buffer = renderer.create_command_buffer();
     renderer.record_submit_command_buffer([&](CommandRecorder& recorder) {
         recorder.copy_buffer(vertex_buffer, vertex_staging_buffer);
         recorder.bind_pipeline(pipeline);
         recorder.bind_descriptor_sets(pipeline, 0, descriptor_sets);
         recorder.dispatch_compute(IMAGE_DIM_X/32, IMAGE_DIM_Y/32, 1);
-    });
-
-    renderer.transition_image_layout(output_image, vk::ImageLayout::eTransferSrcOptimal);
-    renderer.record_submit_command_buffer([&](CommandRecorder& recorder) {
+        recorder.transition_image_layout(output_image, vk::ImageLayout::eTransferSrcOptimal);
         recorder.copy_image_to_buffer(output_staging_buffer, output_image);
     });
 

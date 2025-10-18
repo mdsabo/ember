@@ -41,19 +41,20 @@ namespace ember::gpu {
         /// @brief Command buffer recording callback type
         using CommandRecordFn = std::function<void(CommandRecorder&)>;
 
-        /// @brief Record a command buffer using a callback fn
-        /// @param one_time_submit Command buffer will be submitted one time and destroyed
-        /// @param fn Recording callback
+        /// @brief Create a new command buffer
         /// @return Finished command buffer
-        [[no_discard]] CommandBuffer record_command_buffer(const CommandRecordFn& fn);
+        [[no_discard]] CommandBuffer create_command_buffer(
+            vk::CommandBufferUsageFlags usage = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+        );
+        /// @brief Destroy a command buffer
+        /// @param command_buffer
+        void destroy_command_buffer(CommandBuffer&& command_buffer);
+
+        void record_command_buffer(CommandBuffer& command_buffer, const CommandRecordFn& fn);
 
         /// @brief Record and submit a command buffer
         /// @param fn Recording callback
         void record_submit_command_buffer(const CommandRecordFn& fn);
-
-        /// @brief Destroy a command buffer
-        /// @param command_buffer
-        void destroy_command_buffer(CommandBuffer&& command_buffer);
 
         /// @brief Submit command buffers to the GPU
         /// @param command_buffers Command buffers to submit
@@ -135,7 +136,6 @@ namespace ember::gpu {
             const DescriptorWrite& descriptor_write,
             const ArrayProxy<Image>& images
         );
-        void transition_image_layout(Image& image, vk::ImageLayout new_layout);
 
         /// @brief Create descriptor sets that can be used during shader execution
         /// @param shader_module Target shader module

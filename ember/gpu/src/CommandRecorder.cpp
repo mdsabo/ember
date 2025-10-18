@@ -2,7 +2,9 @@
 
 namespace ember::gpu {
 
-    CommandRecorder::CommandRecorder(CommandBuffer& command_buffer): m_command_buffer(command_buffer) { }
+    CommandRecorder::CommandRecorder(CommandBuffer& command_buffer, uint32_t queue_family_index):
+        m_command_buffer(command_buffer), m_queue_family_index(queue_family_index)
+    { }
 
     void CommandRecorder::pipeline_barrier(
         vk::PipelineStageFlags src_stage_mask,
@@ -19,6 +21,39 @@ namespace ember::gpu {
             buffer_memory_barriers,
             image_memory_barriers
         );
+    }
+
+    namespace {
+        constexpr vk::ImageSubresourceRange IMAGE_WHOLE_SUBRESOURCE_RANGE(vk::ImageAspectFlags aspect_mask) {
+            return vk::ImageSubresourceRange {
+                .aspectMask = aspect_mask,
+                .baseMipLevel = 0,
+                .levelCount = vk::RemainingMipLevels,
+                .baseArrayLayer = 0,
+                .layerCount = vk::RemainingArrayLayers
+            };
+        }
+    }
+
+    void CommandRecorder::transition_image_layout(Image& image, vk::ImageLayout new_layout) {
+        const vk::ImageMemoryBarrier image_memory_barrier {
+            .dstAccessMask = vk::AccessFlagBits::eTransferWrite,
+            .oldLayout = image.layout,
+            .newLayout = new_layout,
+            .srcQueueFamilyIndex = m_queue_family_index,
+            .dstQueueFamilyIndex = m_queue_family_index,
+            .image = image.image,
+            .subresourceRange = IMAGE_WHOLE_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
+            };
+
+        pipeline_barrier(
+            vk::PipelineStageFlagBits::eTopOfPipe, // TODO: Could expose these out as a slight optimization?
+            vk::PipelineStageFlagBits::eTransfer,
+            {},
+            {},
+            image_memory_barrier
+        );
+        image.layout = new_layout;
     }
 
     void CommandRecorder::copy_buffer(const Buffer& dst, const Buffer& src, const std::vector<vk::BufferCopy>& copies) {
