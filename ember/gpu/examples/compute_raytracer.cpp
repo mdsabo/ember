@@ -40,19 +40,20 @@ int main(int argc, const char* argv[]) {
     auto renderer = Renderer(device);
 
     auto vertices = get_vertices();
+    const auto vertex_buffer_size = sizeof(Vertex)*vertices.size();
 
     auto vertex_staging_buffer = renderer.create_buffer(
-        sizeof(Vertex)*vertices.size(),
+        vertex_buffer_size,
         vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc,
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
     );
     auto vertex_buffer = renderer.create_buffer(
-        sizeof(Vertex)*vertices.size(),
+        vertex_buffer_size,
         vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
         vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eHostVisible
     );
 
-    renderer.write_buffer(vertex_staging_buffer, vertices.data(), 0, sizeof(Vertex)*vertices.size());
+    renderer.write_buffer(vertex_buffer, vertices.begin(), vertices.end());
 
     constexpr auto IMAGE_DIM_X = 1024;
     constexpr auto IMAGE_DIM_Y = 768;

@@ -33,18 +33,6 @@ namespace ember::gpu {
         return m_device.allocateCommandBuffers(allocate_info).front();
     }
 
-    // CommandBuffer Renderer::record_command_buffer(const CommandRecordFn& fn) {
-    //     auto command_buffer = allocate_command_buffer();
-
-    //     command_buffer.begin({});
-
-    //     auto recorder = CommandRecorder(command_buffer);
-    //     fn(recorder);
-
-    //     command_buffer.end();
-    //     return CommandBuffer(command_buffer);
-    // }
-
     CommandBuffer Renderer::create_command_buffer(vk::CommandBufferUsageFlags usage) {
         auto command_buffer = allocate_command_buffer();
         command_buffer.begin({ .flags = usage });
@@ -162,7 +150,7 @@ namespace ember::gpu {
         m_device.unmapMemory(buffer.memory);
     }
 
-    void Renderer::write_buffer(Buffer& buffer, void* src, vk::DeviceSize offset, vk::DeviceSize size) {
+    void Renderer::write_buffer(Buffer& buffer, const void* src, vk::DeviceSize offset, vk::DeviceSize size) {
         auto dst = m_device.mapMemory(buffer.memory, offset, size);
         memcpy(dst, src, size);
         m_device.unmapMemory(buffer.memory);

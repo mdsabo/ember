@@ -55,7 +55,7 @@ int main(int argc, const char* argv[]) {
     auto descriptor_sets = renderer.create_descriptor_sets(shader_module, 0, 1);
     renderer.bind_buffers(shader_module, descriptor_sets, {}, { src_gpu_buffer, dst_gpu_buffer });
 
-    renderer.record_command_buffer([&](CommandRecorder& recorder) {
+    renderer.record_submit_command_buffer([&](CommandRecorder& recorder) {
         recorder.copy_buffer(src_gpu_buffer, src_host_buffer);
         recorder.bind_pipeline(pipeline);
         recorder.bind_descriptor_sets(pipeline, 0, descriptor_sets);

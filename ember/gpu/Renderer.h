@@ -100,7 +100,17 @@ namespace ember::gpu {
         /// @param src Source data address
         /// @param offset Offset within buffer
         /// @param size Number of bytes to write
-        void write_buffer(Buffer& buffer, void* src, vk::DeviceSize offset, vk::DeviceSize size);
+        void write_buffer(Buffer& buffer, const void* src, vk::DeviceSize offset, vk::DeviceSize size);
+
+        template<class Iter>
+        void write_buffer(Buffer& buffer, const Iter begin, const Iter end, vk::DeviceSize offset = 0) {
+            auto dst = static_cast<Iter::value_type*>(m_device.mapMemory(buffer.memory, offset, buffer.size));
+            for (auto iter = begin; iter != end; iter++) {
+                *dst = *iter;
+                dst++;
+            }
+            m_device.unmapMemory(buffer.memory);
+        }
 
         /// @brief Bind buffers to descriptors for later use
         /// @param shader_module Shader module of the descriptors
