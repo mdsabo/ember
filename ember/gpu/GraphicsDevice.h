@@ -24,6 +24,7 @@ namespace ember::gpu {
         }
     private:
         vk::Instance m_instance;
+        vk::DebugUtilsMessengerEXT m_debug_messenger;
         vk::PhysicalDevice m_physical_device;
         vk::PhysicalDeviceMemoryProperties m_memory_properties;
         uint32_t m_queue_family_index;

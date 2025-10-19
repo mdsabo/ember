@@ -10,22 +10,25 @@ public:
     LogManifest manifest;
     std::string msg;
 
-    virtual void vformat(const LogManifest& manifest, std::string_view fmt, std::format_args args) {
+    virtual void write(const LogManifest& manifest, const std::string& msg) override {
         this->manifest = manifest;
-        msg = std::vformat(fmt, args);
+        this->msg = msg;
     }
 };
 
 TEST_CASE("ember log macros write manifest, fmt and args to logger vformat function", "[Log]") {
-    auto logger = std::make_shared<TestLogger>();
-    set_logger(logger);
+    auto logger = std::make_unique<TestLogger>();
 
-    info("test-log", "Hello, {}", "World"); auto line = __LINE__;
+    ember::util::log(
+        logger.get(),
+        { "test-log", LogLevel::Info, "function", "file", 420},
+        "Hello, {}", "World"
+    );
 
-    REQUIRE(logger->msg == "Hello, World");
-    REQUIRE(std::string(logger->manifest.func) == __FUNCTION__);
-    REQUIRE(std::string(logger->manifest.file) == __FILE__);
-    REQUIRE(logger->manifest.lineno == line);
-    REQUIRE(logger->manifest.level == LogLevel::Info);
     REQUIRE(std::string("test-log") == logger->manifest.target);
+    REQUIRE(logger->manifest.level == LogLevel::Info);
+    REQUIRE(std::string(logger->manifest.func) == "function");
+    REQUIRE(std::string(logger->manifest.file) == "file");
+    REQUIRE(logger->manifest.lineno == 420);
+    REQUIRE(logger->msg == "Hello, World");
 }

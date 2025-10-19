@@ -1,31 +1,54 @@
 #include "Log.h"
 
-#include <mutex>
+#include <atomic>
+#include <filesystem>
+#include <iostream>
 
 namespace ember::util {
 
-    struct SharedLogger {
-        LogLevel max_log_level;
-        std::shared_ptr<Logger> logger;
-        std::mutex mutex;
+    struct GlobalLoggerState {
+        std::atomic<LogLevel> max_log_level = LogLevel::Trace;
+        std::unique_ptr<Logger> logger = nullptr;
     };
-    static SharedLogger s_shared_logger;
+    static GlobalLoggerState s_global_logger_state;
 
-    void set_logger(std::shared_ptr<Logger> logger) {
-        std::lock_guard lock(s_shared_logger.mutex);
-        s_shared_logger.logger = logger;
+    void set_global_logger(std::unique_ptr<Logger> logger) {
+        s_global_logger_state.logger = std::move(logger);
+    }
+
+    Logger* get_global_logger() {
+        return s_global_logger_state.logger.get();
     }
 
     void set_maximum_log_level(LogLevel level) {
-        std::lock_guard lock(s_shared_logger.mutex);
-        s_shared_logger.max_log_level = level;
+        s_global_logger_state.max_log_level.store(level);
     }
 
-    void __vlog(const LogManifest& manifest, std::string_view fmt, std::format_args args) {
-        std::lock_guard lock(s_shared_logger.mutex);
-
-        auto& logger = s_shared_logger.logger;
-        if (logger != nullptr) logger->vformat(manifest, fmt, args);
+    LogLevel get_maximum_log_level() {
+        return s_global_logger_state.max_log_level.load();
     }
 
+    void __vlog(
+        Logger* logger,
+        const LogManifest& manifest,
+        std::string_view fmt,
+        std::format_args args
+    ) {
+        if ((logger != nullptr) && (manifest.level <= get_maximum_log_level())) {
+            logger->write(manifest, std::vformat(fmt, args));
+        }
+    }
+
+
+    void PrintfLogger::write(const LogManifest& manifest, const std::string& msg) {
+        auto filename = std::filesystem::path(manifest.file).filename();
+        std::cout << std::format(
+            "[{}][{}][{}::{}] ",
+            to_string(manifest.level),
+            manifest.target,
+            filename.string(),
+            manifest.lineno
+        );
+        std::cout << msg <<std::endl;
+    }
 }

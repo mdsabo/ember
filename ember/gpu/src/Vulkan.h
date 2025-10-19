@@ -5,6 +5,8 @@
 
 #include <vulkan/vulkan.hpp>
 
+#define vkGetProcAddr(instance, fn) reinterpret_cast<PFN_##fn>(instance.getProcAddr(#fn));
+
 namespace ember::gpu {
 
     using vk::ArrayProxy;

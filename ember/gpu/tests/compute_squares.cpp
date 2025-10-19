@@ -1,10 +1,13 @@
 #include "Renderer.h"
 #include "ember/util/ArgParser.h"
+#include "ember/util/Log.h"
 
 using namespace ember::gpu;
 using namespace ember::util;
 
 int main(int argc, const char* argv[]) {
+    set_global_logger(std::make_unique<PrintfLogger>());
+
     auto argparse = ArgParser(argc, argv);
 
     const AppInfo app_info {

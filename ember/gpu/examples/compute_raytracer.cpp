@@ -9,6 +9,7 @@
 
 #include "Renderer.h"
 #include "ember/util/ArgParser.h"
+#include "ember/util/Log.h"
 
 using namespace ember::gpu;
 using namespace ember::util;
@@ -24,6 +25,8 @@ static std::vector<Vertex> get_vertices() {
 }
 
 int main(int argc, const char* argv[]) {
+    // set_global_logger(std::make_unique<PrintfLogger>());
+
     auto argparse = ArgParser(argc, argv);
     //argparse.add_argument(nullptr, "--api-dump", "Enable Vulkan API dump layer");
 

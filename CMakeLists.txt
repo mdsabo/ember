@@ -5,8 +5,6 @@ include(CTest)
 option(EMBER_TESTS "Build ember tests" ON)
 option(EMBER_EXAMPLES "Build ember example programs" ON)
 
-# Needed for SDL3 to copy DLLs into the binary dir
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
