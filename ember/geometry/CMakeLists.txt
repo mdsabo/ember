@@ -1,12 +1,13 @@
 add_library(ember-geometry
-    INTERFACE
+    STATIC
+    src/IntersectionTests.cpp
 )
 target_include_directories(ember-geometry
-    INTERFACE
+    PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}
 )
-target_link_libraries(ember-geometry INTERFACE eigen)
+target_link_libraries(ember-geometry PUBLIC eigen)
 
 if(EMBER_TESTS)
     add_executable(ember-geometry.test.unit tests/test_ray.cpp)
