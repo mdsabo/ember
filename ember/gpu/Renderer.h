@@ -11,6 +11,8 @@
 
 namespace ember::gpu {
 
+    using vk::ArrayProxy;
+
     // FIXME: Where should I put these?
     struct DescriptorWrite {
         uint32_t set_index = 0;
@@ -37,6 +39,12 @@ namespace ember::gpu {
     public:
         Renderer(std::shared_ptr<const GraphicsDevice> device);
         ~Renderer();
+
+        vk::SwapchainKHR create_swapchain_for_surface(
+            vk::SurfaceKHR surface,
+            vk::Extent2D window_extent,
+            vk::SwapchainKHR old_swapchain = VK_NULL_HANDLE
+        );
 
         /// @brief Command buffer recording callback type
         using CommandRecordFn = std::function<void(CommandRecorder&)>;
@@ -172,7 +180,22 @@ namespace ember::gpu {
         /// @param shader_module Shader to be run by the pipeline
         /// @param entry_point Name of the shader entry point (default: "main")
         /// @return Created pipeline
-        Pipeline create_compute_pipeline(const ShaderModule& shader_module, const std::string_view& entry_point = "main");
+        Pipeline create_compute_pipeline(
+            const ShaderModule& shader_module,
+            const std::string_view& entry_point = "main"
+        );
+        // Pipeline create_graphics_pipeline(
+        //     // const ArrayProxy<ShaderModule*>& stages, UHHHH
+        //     const vk::PipelineVertexInputStateCreateInfo& vertex_input_state,
+        //     const vk::PipelineInputAssemblyStateCreateInfo& input_assembly_state,
+        //     const vk::PipelineTessellationStateCreateInfo& tesselation_state,
+        //     const vk::PipelineViewportStateCreateInfo& viewport_state,
+        //     const vk::PipelineRasterizationStateCreateInfo& rasterization_state,
+        //     const vk::PipelineMultisampleStateCreateInfo& multisample_state,
+        //     const vk::PipelineDepthStencilStateCreateInfo& depth_stencil_state,
+        //     const vk::PipelineColorBlendStateCreateInfo& color_blend_state,
+        //     const vk::PipelineDynamicStateCreateInfo& dynamic_state
+        // )
 
         /// @brief Destroy a pipeline of any type
         /// @param pipeline

@@ -1,9 +1,11 @@
 #pragma once
 
+#include <vulkan/vulkan.hpp>
 #include "RenderObjects.h"
-#include "src/Vulkan.h"
 
 namespace ember::gpu {
+
+    using vk::ArrayProxy;
 
     class CommandRecorder {
     public:

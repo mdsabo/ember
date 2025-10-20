@@ -19,7 +19,8 @@ int main(int argc, const char* argv[]) {
         }
     };
 
-    auto device = GraphicsDevice::create(app_info);
+    auto instance = VulkanInstance::create(app_info);
+    auto device = GraphicsDevice::create(instance);
     auto renderer = Renderer(device);
 
     constexpr auto NUM_ELEMENTS = 64;

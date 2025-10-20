@@ -2,9 +2,9 @@
 
 #include <spirv_reflect.h>
 #include <vector>
+#include <vulkan/vulkan.hpp>
 
 #include "SPIRV.h"
-#include "Vulkan.h"
 
 namespace ember::gpu {
 

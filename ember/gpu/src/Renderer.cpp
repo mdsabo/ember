@@ -18,6 +18,15 @@ namespace ember::gpu {
         m_device.destroy();
     }
 
+    vk::SwapchainKHR Renderer::create_swapchain_for_surface(
+        vk::SurfaceKHR surface,
+        vk::Extent2D window_extent,
+        vk::SwapchainKHR old_swapchain
+    ) {
+        auto create_info = m_gpu->get_swapchain_create_info_for_surface(surface, window_extent, old_swapchain);
+        return m_device.createSwapchainKHR(create_info);
+    }
+
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Command Buffers                                                                          //
     //////////////////////////////////////////////////////////////////////////////////////////////

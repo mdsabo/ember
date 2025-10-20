@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include "src/Vulkan.h"
+#include <vulkan/vulkan.hpp>
 
 namespace ember::gpu {
 
