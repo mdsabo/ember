@@ -13,3 +13,5 @@ CMakeUserPresets.json
 .vscode
 .DS_Store
 build/
+
+ember/gpu/examples/raytracer.output.bmp

@@ -9,6 +9,8 @@
 #include "GraphicsDevice.h"
 #include "RenderObjects.h"
 
+#include "ember/util/Allocators.h"
+
 namespace ember::gpu {
 
     using vk::ArrayProxy;
@@ -27,12 +29,12 @@ namespace ember::gpu {
     };
 
     struct BufferBindInfo {
-        const Buffer& buffer;
+        const Buffer* buffer;
         vk::DeviceSize offset;
         vk::DeviceSize size;
 
-        BufferBindInfo(const Buffer& buffer): buffer(buffer), offset(0), size(vk::WholeSize) { }
-        BufferBindInfo(const Buffer& buffer, vk::DeviceSize offset, vk::DeviceSize size): buffer(buffer), offset(offset), size(size) { }
+        BufferBindInfo(const Buffer* buffer): buffer(buffer), offset(0), size(vk::WholeSize) { }
+        BufferBindInfo(const Buffer* buffer, vk::DeviceSize offset, vk::DeviceSize size): buffer(buffer), offset(offset), size(size) { }
     };
 
     class Renderer {
@@ -51,14 +53,14 @@ namespace ember::gpu {
 
         /// @brief Create a new command buffer
         /// @return Finished command buffer
-        [[no_discard]] CommandBuffer create_command_buffer(
+        [[nodiscard]] vk::CommandBuffer create_command_buffer(
             vk::CommandBufferUsageFlags usage = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
         );
         /// @brief Destroy a command buffer
         /// @param command_buffer
-        void destroy_command_buffer(CommandBuffer&& command_buffer);
+        void destroy_command_buffer(vk::CommandBuffer command_buffer);
 
-        void record_command_buffer(CommandBuffer& command_buffer, const CommandRecordFn& fn);
+        void record_command_buffer(vk::CommandBuffer command_buffer, const CommandRecordFn& fn);
 
         /// @brief Record and submit a command buffer
         /// @param fn Recording callback
@@ -69,20 +71,20 @@ namespace ember::gpu {
         /// @param wait_semaphores Semaphores to wait on before commands are executed
         /// @param signal_sempahores Semaphores to signal when commands complete
         /// @return Fence indicating command buffers have finished
-        [[no_discard]] Fence submit_command_buffers(
-            const ArrayProxy<CommandBuffer>& command_buffers,
-            const ArrayProxy<Semaphore>& wait_semaphores = {},
-            const ArrayProxy<Semaphore>& signal_sempahores = {}
+        [[nodiscard]] vk::Fence submit_command_buffers(
+            const ArrayProxy<vk::CommandBuffer>& command_buffers,
+            const ArrayProxy<vk::Semaphore>& wait_semaphores = {},
+            const ArrayProxy<vk::Semaphore>& signal_sempahores = {}
         );
         /// @brief Submit a command buffer to the GPU
         /// @param command_buffers Command buffer to submit
         /// @param wait_semaphores Semaphores to wait on before commands are executed
         /// @param signal_sempahores Semaphores to signal when commands complete
         /// @return Fence indicating command buffer has finished
-        [[no_discard]] Fence submit_command_buffer(
-            CommandBuffer command_buffer,
-            const ArrayProxy<Semaphore>& wait_semaphores = {},
-            const ArrayProxy<Semaphore>& signal_sempahores = {}
+        [[nodiscard]] vk::Fence submit_command_buffer(
+            vk::CommandBuffer command_buffer,
+            const ArrayProxy<vk::Semaphore>& wait_semaphores = {},
+            const ArrayProxy<vk::Semaphore>& signal_sempahores = {}
         );
 
         /// @brief Create a new buffer
@@ -90,34 +92,34 @@ namespace ember::gpu {
         /// @param usage Buffer usage
         /// @param properties Memory properties
         /// @return Allocated buffer
-        Buffer create_buffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
+        Buffer* create_buffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
 
         /// @brief Destroy a previously allocated buffer
         /// @param buffer
-        void destroy_buffer(Buffer&& buffer);
+        void destroy_buffer(Buffer* buffer);
 
         /// @brief Read the contents of a buffer
         /// @param dst Destination memory address
         /// @param buffer Buffer to read
         /// @param offset Offset within buffer
         /// @param size Number of bytes to read
-        void read_buffer(void* dst, const Buffer& buffer, vk::DeviceSize offset, vk::DeviceSize size) const;
+        void read_buffer(void* dst, const Buffer* buffer, vk::DeviceSize offset, vk::DeviceSize size) const;
 
         /// @brief Write data to a buffer
         /// @param buffer Buffer to be written
         /// @param src Source data address
         /// @param offset Offset within buffer
         /// @param size Number of bytes to write
-        void write_buffer(Buffer& buffer, const void* src, vk::DeviceSize offset, vk::DeviceSize size);
+        void write_buffer(Buffer* buffer, const void* src, vk::DeviceSize offset, vk::DeviceSize size);
 
         template<class Iter>
-        void write_buffer(Buffer& buffer, const Iter begin, const Iter end, vk::DeviceSize offset = 0) {
-            auto dst = static_cast<Iter::value_type*>(m_device.mapMemory(buffer.memory, offset, buffer.size));
+        void write_buffer(Buffer* buffer, const Iter begin, const Iter end, vk::DeviceSize offset = 0) {
+            auto dst = static_cast<Iter::value_type*>(m_device.mapMemory(buffer->memory, offset, buffer->size));
             for (auto iter = begin; iter != end; iter++) {
                 *dst = *iter;
                 dst++;
             }
-            m_device.unmapMemory(buffer.memory);
+            m_device.unmapMemory(buffer->memory);
         }
 
         /// @brief Bind buffers to descriptors for later use
@@ -126,7 +128,7 @@ namespace ember::gpu {
         /// @param descriptor_write Indicies within the descriptor set to write
         /// @param buffers Buffers to bind
         void bind_buffers(
-            const ShaderModule& shader_module,
+            const ShaderModule* shader_module,
             const DescriptorSetChunk& descriptor_sets,
             const DescriptorWrite& descriptor_write,
             const ArrayProxy<BufferBindInfo>& buffers
@@ -140,19 +142,19 @@ namespace ember::gpu {
             vk::ImageLayout layout;
             vk::MemoryPropertyFlags memory_properties;
         };
-        Image create_image(const ImageCreateInfo& image_info);
-        void destroy_image(Image&& image);
-        void read_image(void* dst, const Image& image);
+        Image* create_image(const ImageCreateInfo& image_info);
+        void destroy_image(Image* image);
+        void read_image(void* dst, const Image* image);
         /// @brief Bind images to descriptors for later use
         /// @param shader_module Shader module of the descriptors
         /// @param descriptor_sets Descriptor sets to bind to
         /// @param descriptor_write Indicies within the descriptor set to write
         /// @param buffers Images to bind
         void bind_images(
-            const ShaderModule& shader_module,
+            const ShaderModule* shader_module,
             const DescriptorSetChunk& descriptor_sets,
             const DescriptorWrite& descriptor_write,
-            const ArrayProxy<Image>& images
+            const ArrayProxy<Image*>& images
         );
 
         /// @brief Create descriptor sets that can be used during shader execution
@@ -160,28 +162,28 @@ namespace ember::gpu {
         /// @param set_index Descriptor set index
         /// @param descriptor_set_count Number of descriptor sets to create
         /// @return Allocated block of descriptor sets
-        DescriptorSetChunk create_descriptor_sets(ShaderModule& shader_module, uint32_t set_index, uint32_t descriptor_set_count);
+        DescriptorSetChunk create_descriptor_sets(ShaderModule* shader_module, uint32_t set_index, uint32_t descriptor_set_count);
 
         /// @brief Destory a block fo descriptor sets
         /// @param shader_module Shader module of descriptor sets
         /// @param descriptor_sets Descriptor sets to destroy
-        void destroy_descriptor_sets(ShaderModule& shader_module, DescriptorSetChunk&& descriptor_sets);
+        void destroy_descriptor_sets(ShaderModule* shader_module, DescriptorSetChunk&& descriptor_sets);
 
         /// @brief Create a shader module from a given path
         /// @param path Path to GLSL shader file
         /// @return Created shader module
-        ShaderModule create_shader_module(const std::filesystem::path& path);
+        ShaderModule* create_shader_module(const std::filesystem::path& path);
 
         /// @brief Destroy a shader module
         /// @param module
-        void destroy_shader_module(ShaderModule&& module);
+        void destroy_shader_module(ShaderModule* module);
 
         /// @brief Create a compute pipeline
         /// @param shader_module Shader to be run by the pipeline
         /// @param entry_point Name of the shader entry point (default: "main")
         /// @return Created pipeline
-        Pipeline create_compute_pipeline(
-            const ShaderModule& shader_module,
+        Pipeline* create_compute_pipeline(
+            const ShaderModule* shader_module,
             const std::string_view& entry_point = "main"
         );
         // Pipeline create_graphics_pipeline(
@@ -199,24 +201,24 @@ namespace ember::gpu {
 
         /// @brief Destroy a pipeline of any type
         /// @param pipeline
-        void destroy_pipeline(Pipeline&& pipeline);
+        void destroy_pipeline(Pipeline* pipeline);
 
         /// @brief Wait for a list of fences to complete
         /// @param fences List of fences to wait on
         /// @param timeout Wait timeout
         /// @return true if all fences completed, false otherwise
         bool wait_for_fences(
-            const ArrayProxy<Fence>& fences,
+            const ArrayProxy<vk::Fence>& fences,
             std::chrono::nanoseconds timeout = std::chrono::nanoseconds::max()
         );
 
         /// @brief Create a sempahore
         /// @return Created sempahore
-        [[no_discard]] Semaphore create_semaphore();
+        [[nodiscard]] vk::Semaphore create_semaphore();
 
         /// @brief Destroy a semaphore
         /// @param semaphore
-        void destroy_semaphore(Semaphore&& semaphore);
+        void destroy_semaphore(vk::Semaphore semaphore);
 
     private:
         std::shared_ptr<const GraphicsDevice> m_gpu;
@@ -226,16 +228,22 @@ namespace ember::gpu {
         vk::CommandPool m_command_pool;
         unsigned int m_allocated_command_buffers;
 
+        util::SlabAllocator<Buffer> m_buffer_allocator;
+        util::SlabAllocator<Image> m_image_allocator;
+        util::SlabAllocator<Pipeline> m_pipeline_allocator;
+        util::SlabAllocator<ShaderModule> m_shader_module_allocator;
+
         vk::DeviceMemory allocate_memory(
             vk::MemoryRequirements requirements,
             vk::MemoryPropertyFlags properties
         );
 
-        std::vector<ShaderModule::DescriptorSetAllocationInfo> create_descriptor_set_allocation_infos(
+        void init_descriptor_pools(
+            DescriptorSetArray<DescriptorPool>& descriptor_pools,
             const std::vector<std::vector<vk::DescriptorSetLayoutBinding>>& descriptor_set_layout_bindings
         );
 
-        vk::PipelineLayout create_pipeline_layout(const ShaderModule& shader_module);
+        vk::PipelineLayout create_pipeline_layout(const ShaderModule* shader_module);
 
         vk::CommandBuffer allocate_command_buffer(
             vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary

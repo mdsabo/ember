@@ -63,6 +63,7 @@ namespace ember::util {
 
     class Logger {
     public:
+        virtual ~Logger() = default;
         virtual void write(
             const LogManifest& manifest, const std::string& msg) = 0;
     };

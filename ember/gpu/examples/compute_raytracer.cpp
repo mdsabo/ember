@@ -99,12 +99,12 @@ int main(int argc, const char* argv[]) {
     renderer.read_buffer(image_data.data(), output_staging_buffer, 0, IMAGE_DIM_X*IMAGE_DIM_Y*4);
 
     renderer.destroy_descriptor_sets(shader_module, std::move(descriptor_sets));
-    renderer.destroy_pipeline(std::move(pipeline));
-    renderer.destroy_shader_module(std::move(shader_module));
-    renderer.destroy_buffer(std::move(output_staging_buffer));
-    renderer.destroy_image(std::move(output_image));
-    renderer.destroy_buffer(std::move(vertex_staging_buffer));
-    renderer.destroy_buffer(std::move(vertex_buffer));
+    renderer.destroy_pipeline(pipeline);
+    renderer.destroy_shader_module(shader_module);
+    renderer.destroy_buffer(output_staging_buffer);
+    renderer.destroy_image(output_image);
+    renderer.destroy_buffer(vertex_staging_buffer);
+    renderer.destroy_buffer(vertex_buffer);
 
     auto output_path = std::filesystem::path(EMBER_GPU_DIR)
         .append("examples/raytracer.output.bmp")

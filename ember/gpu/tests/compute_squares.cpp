@@ -71,12 +71,12 @@ int main(int argc, const char* argv[]) {
     renderer.read_buffer(squared.data(), dst_host_buffer, 0, BUFFER_SIZE);
 
     renderer.destroy_descriptor_sets(shader_module, std::move(descriptor_sets));
-    renderer.destroy_pipeline(std::move(pipeline));
-    renderer.destroy_shader_module(std::move(shader_module));
-    renderer.destroy_buffer(std::move(src_host_buffer));
-    renderer.destroy_buffer(std::move(src_gpu_buffer));
-    renderer.destroy_buffer(std::move(dst_host_buffer));
-    renderer.destroy_buffer(std::move(dst_gpu_buffer));
+    renderer.destroy_pipeline(pipeline);
+    renderer.destroy_shader_module(shader_module);
+    renderer.destroy_buffer(src_host_buffer);
+    renderer.destroy_buffer(src_gpu_buffer);
+    renderer.destroy_buffer(dst_host_buffer);
+    renderer.destroy_buffer(dst_gpu_buffer);
 
     for (uint32_t i = 0; i < NUM_ELEMENTS; i+=4) {
         if (squared[i] != (i*i)) {

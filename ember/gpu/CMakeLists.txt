@@ -37,13 +37,15 @@ if(EMBER_TESTS)
         ${CMAKE_SOURCE_DIR}
     )
     target_link_libraries(ember-gpu.tests.compute-squares PRIVATE ember-gpu ember-util)
-    add_custom_command(
-        TARGET ember-gpu.tests.compute-squares
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_RUNTIME_DLLS:ember-gpu.tests.compute-squares>
-            $<TARGET_FILE_DIR:ember-gpu.tests.compute-squares>
-    )
+    if(WIN32)
+        add_custom_command(
+            TARGET ember-gpu.tests.compute-squares
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ember-gpu.tests.compute-squares>
+                $<TARGET_FILE_DIR:ember-gpu.tests.compute-squares>
+        )
+    endif()
     add_test(NAME ember-gpu.tests.compute-squares COMMAND $<TARGET_FILE:ember-gpu.tests.compute-squares>)
 
 # add_executable(ember-gpu.test tests/test_dynamic_bitset.cpp)
@@ -59,14 +61,17 @@ if(EMBER_EXAMPLES)
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}
     )
+    target_compile_options(ember-gpu.examples.compute-raytracer PRIVATE -Wno-deprecated-declarations)
     target_link_libraries(ember-gpu.examples.compute-raytracer PRIVATE ember-gpu eigen stb)
-    add_custom_command(
-        TARGET ember-gpu.examples.compute-raytracer
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_RUNTIME_DLLS:ember-gpu.examples.compute-raytracer>
-            $<TARGET_FILE_DIR:ember-gpu.examples.compute-raytracer>
-    )
+    if(WIN32)
+        add_custom_command(
+            TARGET ember-gpu.examples.compute-raytracer
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ember-gpu.examples.compute-raytracer>
+                $<TARGET_FILE_DIR:ember-gpu.examples.compute-raytracer>
+        )
+    endif()
 
     add_executable(ember-gpu.examples.sdl-window examples/sdl_window.cpp)
     target_include_directories(ember-gpu.examples.sdl-window
@@ -75,11 +80,13 @@ if(EMBER_EXAMPLES)
         ${CMAKE_SOURCE_DIR}
     )
     target_link_libraries(ember-gpu.examples.sdl-window PRIVATE ember-gpu SDL3::SDL3)
-    add_custom_command(
-        TARGET ember-gpu.examples.sdl-window
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_RUNTIME_DLLS:ember-gpu.examples.sdl-window>
-            $<TARGET_FILE_DIR:ember-gpu.examples.sdl-window>
-    )
+    if(WIN32)
+        add_custom_command(
+            TARGET ember-gpu.examples.sdl-window
+            POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:ember-gpu.examples.sdl-window>
+                $<TARGET_FILE_DIR:ember-gpu.examples.sdl-window>
+        )
+    endif()
 endif()

@@ -2,7 +2,7 @@
 
 namespace ember::gpu {
 
-    CommandRecorder::CommandRecorder(CommandBuffer& command_buffer, uint32_t queue_family_index):
+    CommandRecorder::CommandRecorder(vk::CommandBuffer command_buffer, uint32_t queue_family_index):
         m_command_buffer(command_buffer), m_queue_family_index(queue_family_index)
     { }
 
@@ -35,14 +35,14 @@ namespace ember::gpu {
         }
     }
 
-    void CommandRecorder::transition_image_layout(Image& image, vk::ImageLayout new_layout) {
+    void CommandRecorder::transition_image_layout(Image* image, vk::ImageLayout new_layout) {
         const vk::ImageMemoryBarrier image_memory_barrier {
             .dstAccessMask = vk::AccessFlagBits::eTransferWrite,
-            .oldLayout = image.layout,
+            .oldLayout = image->layout,
             .newLayout = new_layout,
             .srcQueueFamilyIndex = m_queue_family_index,
             .dstQueueFamilyIndex = m_queue_family_index,
-            .image = image.image,
+            .image = image->image,
             .subresourceRange = IMAGE_WHOLE_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
             };
 
@@ -53,22 +53,22 @@ namespace ember::gpu {
             {},
             image_memory_barrier
         );
-        image.layout = new_layout;
+        image->layout = new_layout;
     }
 
-    void CommandRecorder::copy_buffer(const Buffer& dst, const Buffer& src, const std::vector<vk::BufferCopy>& copies) {
+    void CommandRecorder::copy_buffer(Buffer* dst, const Buffer* src, const std::vector<vk::BufferCopy>& copies) {
         if (copies.size() == 0) {
             m_command_buffer.copyBuffer(
-                src.buffer,
-                dst.buffer,
-                vk::BufferCopy{ .srcOffset = 0, .dstOffset = 0, .size = std::min(src.size, dst.size)}
+                src->buffer,
+                dst->buffer,
+                vk::BufferCopy{ .srcOffset = 0, .dstOffset = 0, .size = std::min(src->size, dst->size)}
             );
         } else {
-            m_command_buffer.copyBuffer(src.buffer, dst.buffer, copies);
+            m_command_buffer.copyBuffer(src->buffer, dst->buffer, copies);
         }
     }
 
-    void CommandRecorder::copy_image_to_buffer(const Buffer& buffer, const Image& image) {
+    void CommandRecorder::copy_image_to_buffer(Buffer* buffer, const Image* image) {
         const vk::BufferImageCopy image_copy {
             .imageSubresource = vk::ImageSubresourceLayers{
                 .aspectMask = vk::ImageAspectFlagBits::eColor,
@@ -76,23 +76,23 @@ namespace ember::gpu {
                 .baseArrayLayer = 0,
                 .layerCount = 1
             },
-            .imageExtent = image.extent,
+            .imageExtent = image->extent,
         };
-        m_command_buffer.copyImageToBuffer(image.image, image.layout, buffer.buffer, image_copy);
+        m_command_buffer.copyImageToBuffer(image->image, image->layout, buffer->buffer, image_copy);
     }
 
-    void CommandRecorder::bind_pipeline(const Pipeline& pipeline) {
-        m_command_buffer.bindPipeline(pipeline.bind_point, pipeline.pipeline);
+    void CommandRecorder::bind_pipeline(const Pipeline* pipeline) {
+        m_command_buffer.bindPipeline(pipeline->bind_point, pipeline->pipeline);
     }
 
     void CommandRecorder::bind_descriptor_sets(
-        const Pipeline& pipeline,
+        const Pipeline* pipeline,
         uint32_t first_set,
         const DescriptorSetChunk& descriptor_sets
     ) {
         m_command_buffer.bindDescriptorSets(
-            pipeline.bind_point,
-            pipeline.layout,
+            pipeline->bind_point,
+            pipeline->layout,
             first_set,
             descriptor_sets.sets,
             {}

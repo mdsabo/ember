@@ -1,47 +1,59 @@
 #pragma once
 
+#include <array>
 #include <vector>
 #include <vulkan/vulkan.hpp>
 
 namespace ember::gpu {
 
-    class [[no_discard]] Buffer {
-        friend class Renderer;
-        friend class CommandRecorder;
-
+    struct Buffer {
         vk::DeviceSize size;
         vk::Buffer buffer;
         vk::DeviceMemory memory;
-
-        Buffer() = default;
-        Buffer(vk::DeviceSize size, vk::Buffer buffer, vk::DeviceMemory memory):
-            size(size), buffer(buffer), memory(memory)
-        { }
     };
 
-    class [[no_discard]] Image {
-        friend class Renderer;
-        friend class CommandRecorder;
-
+    struct Image {
         vk::Extent3D extent;
         vk::ImageLayout layout;
         vk::Image image;
         vk::ImageView view;
         vk::DeviceMemory memory;
-
-        Image() = default;
-        Image(
-            vk::Extent3D extent,
-            vk::ImageLayout layout,
-            vk::Image image,
-            vk::ImageView view,
-            vk::DeviceMemory memory
-        ):
-            extent(extent), layout(layout), image(image), view(view), memory(memory)
-        { }
     };
 
-    class [[no_discard]] DescriptorSetChunk {
+    struct Pipeline {
+        vk::PipelineBindPoint bind_point;
+        vk::PipelineLayout layout;
+        vk::Pipeline pipeline;
+    };
+
+    constexpr auto DEFAULT_MAX_DESCRIPTOR_SETS_PER_POOL = 32768;
+
+    struct DescriptorPool {
+        vk::DescriptorSetLayout layout;
+        vk::DescriptorPool pool;
+        uint32_t allocated_sets = 0;
+        uint32_t max_sets = DEFAULT_MAX_DESCRIPTOR_SETS_PER_POOL;
+        uint32_t highwater_sets = 0;
+    };
+
+    constexpr auto MAX_DESCRIPTOR_SETS = 4;
+    template<typename T>
+    using DescriptorSetArray = std::array<T, MAX_DESCRIPTOR_SETS>;
+    constexpr auto MAX_DESCRIPTOR_BINDINGS_PER_SET = 4;
+    template<typename T>
+    using DescriptorBindingArray = DescriptorSetArray<std::array<T, MAX_DESCRIPTOR_BINDINGS_PER_SET>>;
+
+
+    struct ShaderModule {
+        vk::ShaderModule shader_module;
+        uint32_t descriptor_set_count;
+        DescriptorSetArray<size_t> descriptor_binding_counts;
+        DescriptorSetArray<DescriptorPool> descriptor_pools;
+        DescriptorBindingArray<vk::DescriptorType> descriptor_types;
+        std::vector<vk::PushConstantRange> push_constant_ranges;
+    };
+
+    class DescriptorSetChunk {
         friend class Renderer;
         friend class CommandRecorder;
 
@@ -53,56 +65,4 @@ namespace ember::gpu {
             sets(sets), set_index(set_index)
         { }
     };
-
-    struct [[no_discard]] Pipeline {
-        friend class Renderer;
-        friend class CommandRecorder;
-
-        vk::PipelineBindPoint bind_point;
-        vk::PipelineLayout layout;
-        vk::Pipeline pipeline;
-
-        Pipeline() = default;
-        Pipeline(vk::PipelineBindPoint bind_point, vk::PipelineLayout layout, vk::Pipeline pipeline):
-            bind_point(bind_point), layout(layout), pipeline(pipeline)
-        { }
-    };
-
-    class [[no_discard]] ShaderModule {
-        friend class Renderer;
-
-        vk::ShaderModule shader_module;
-        std::vector<std::vector<vk::DescriptorSetLayoutBinding>> descriptor_set_layout_bindings;
-
-        struct DescriptorSetAllocationInfo {
-            vk::DescriptorSetLayout layout;
-            vk::DescriptorPool pool;
-            uint32_t allocated_sets;
-            uint32_t max_sets;
-            uint32_t highwater_sets;
-        };
-        std::vector<DescriptorSetAllocationInfo> descriptor_set_allocation_infos;
-
-        std::vector<vk::PushConstantRange> push_constant_ranges;
-
-        ShaderModule() = default;
-        ShaderModule(
-            vk::ShaderModule shader_module,
-            const std::vector<std::vector<vk::DescriptorSetLayoutBinding>>& descriptor_set_layout_bindings,
-            const std::vector<DescriptorSetAllocationInfo>& descriptor_set_allocation_infos,
-            const std::vector<vk::PushConstantRange>& push_constant_ranges
-        ):
-            shader_module(shader_module), descriptor_set_layout_bindings(descriptor_set_layout_bindings),
-            descriptor_set_allocation_infos(descriptor_set_allocation_infos),
-            push_constant_ranges(push_constant_ranges)
-        { }
-
-        vk::DescriptorType get_descriptor_type(uint32_t set, uint32_t binding) const {
-            return descriptor_set_layout_bindings.at(set).at(binding).descriptorType;
-        }
-    };
-
-    using vk::CommandBuffer;
-    using vk::Fence;
-    using vk::Semaphore;
 }

@@ -8,6 +8,7 @@ target_include_directories(ember-util PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAK
 
 if(EMBER_TESTS)
     add_executable(ember-util.tests.unit
+        tests/test_allocators.cpp
         tests/test_arg_parser.cpp
         tests/test_log.cpp
     )
