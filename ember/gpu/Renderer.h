@@ -8,6 +8,7 @@
 #include "CommandRecorder.h"
 #include "GraphicsDevice.h"
 #include "RenderObjects.h"
+#include "SPIRV.h"
 
 #include "ember/util/Allocators.h"
 
@@ -48,6 +49,10 @@ namespace ember::gpu {
             vk::SwapchainKHR old_swapchain = VK_NULL_HANDLE
         );
 
+        //////////////////////////////////////////////////////////////////////////////////////////////
+        // Command Buffers                                                                          //
+        //////////////////////////////////////////////////////////////////////////////////////////////
+
         /// @brief Command buffer recording callback type
         using CommandRecordFn = std::function<void(CommandRecorder&)>;
 
@@ -86,6 +91,10 @@ namespace ember::gpu {
             const ArrayProxy<vk::Semaphore>& wait_semaphores = {},
             const ArrayProxy<vk::Semaphore>& signal_sempahores = {}
         );
+
+        //////////////////////////////////////////////////////////////////////////////////////////////
+        // Memory                                                                                   //
+        //////////////////////////////////////////////////////////////////////////////////////////////
 
         /// @brief Create a new buffer
         /// @param size Size in bytes
@@ -129,9 +138,9 @@ namespace ember::gpu {
         /// @param buffers Buffers to bind
         void bind_buffers(
             const ShaderModule* shader_module,
-            const DescriptorSetChunk& descriptor_sets,
+            const DescriptorSets* descriptor_sets,
             const DescriptorWrite& descriptor_write,
-            const ArrayProxy<BufferBindInfo>& buffers
+            const ArrayProxy<Buffer*>& buffers
         );
 
         struct ImageCreateInfo {
@@ -152,22 +161,46 @@ namespace ember::gpu {
         /// @param buffers Images to bind
         void bind_images(
             const ShaderModule* shader_module,
-            const DescriptorSetChunk& descriptor_sets,
+            const DescriptorSets* descriptor_sets,
             const DescriptorWrite& descriptor_write,
             const ArrayProxy<Image*>& images
         );
+
+        //////////////////////////////////////////////////////////////////////////////////////////////
+        // Descriptor Sets                                                                          //
+        //////////////////////////////////////////////////////////////////////////////////////////////
 
         /// @brief Create descriptor sets that can be used during shader execution
         /// @param shader_module Target shader module
         /// @param set_index Descriptor set index
         /// @param descriptor_set_count Number of descriptor sets to create
         /// @return Allocated block of descriptor sets
-        DescriptorSetChunk create_descriptor_sets(ShaderModule* shader_module, uint32_t set_index, uint32_t descriptor_set_count);
+        DescriptorSets* create_descriptor_sets(ShaderModule* shader_module, uint32_t set_index, uint32_t descriptor_set_count);
 
         /// @brief Destory a block fo descriptor sets
-        /// @param shader_module Shader module of descriptor sets
         /// @param descriptor_sets Descriptor sets to destroy
-        void destroy_descriptor_sets(ShaderModule* shader_module, DescriptorSetChunk&& descriptor_sets);
+        void destroy_descriptor_sets(DescriptorSets* descriptor_sets);
+
+        /// @brief Merge two descriptor set allocations
+        ///
+        /// The two sets MUST have the same set index and shader module
+        ///
+        /// @param dst Merge sets into this allocation
+        /// @param src Destroy this allocation after transferring sets
+        void merge_descriptor_sets(DescriptorSets* dst, DescriptorSets* src);
+
+
+
+
+        DescriptorSetAllocator* create_descriptor_set_allocator(
+            const ArrayProxy<ShaderModule2*>& shader_stages
+        );
+
+        void destroy_descriptor_set_allocator(DescriptorSetAllocator* dsa);
+
+        //////////////////////////////////////////////////////////////////////////////////////////////
+        // Shaders                                                                                  //
+        //////////////////////////////////////////////////////////////////////////////////////////////
 
         /// @brief Create a shader module from a given path
         /// @param path Path to GLSL shader file
@@ -178,6 +211,22 @@ namespace ember::gpu {
         /// @param module
         void destroy_shader_module(ShaderModule* module);
 
+
+
+
+        ShaderModule2* create_shader_module2(
+            const std::string& glsl,
+            const std::string& filename = "",
+            shaderc_shader_kind shader_kind = shaderc_glsl_infer_from_source, // #pragma shader_stage(something)
+            bool optimize = false
+        );
+        ShaderModule2* create_shader_module2(const std::filesystem::path& path, bool optimize = false);
+        void destroy_shader_module2(ShaderModule2* shader_module);
+
+        //////////////////////////////////////////////////////////////////////////////////////////////
+        // Pipelines                                                                                //
+        //////////////////////////////////////////////////////////////////////////////////////////////
+
         /// @brief Create a compute pipeline
         /// @param shader_module Shader to be run by the pipeline
         /// @param entry_point Name of the shader entry point (default: "main")
@@ -186,22 +235,34 @@ namespace ember::gpu {
             const ShaderModule* shader_module,
             const std::string_view& entry_point = "main"
         );
-        // Pipeline create_graphics_pipeline(
-        //     // const ArrayProxy<ShaderModule*>& stages, UHHHH
-        //     const vk::PipelineVertexInputStateCreateInfo& vertex_input_state,
-        //     const vk::PipelineInputAssemblyStateCreateInfo& input_assembly_state,
-        //     const vk::PipelineTessellationStateCreateInfo& tesselation_state,
-        //     const vk::PipelineViewportStateCreateInfo& viewport_state,
-        //     const vk::PipelineRasterizationStateCreateInfo& rasterization_state,
-        //     const vk::PipelineMultisampleStateCreateInfo& multisample_state,
-        //     const vk::PipelineDepthStencilStateCreateInfo& depth_stencil_state,
-        //     const vk::PipelineColorBlendStateCreateInfo& color_blend_state,
-        //     const vk::PipelineDynamicStateCreateInfo& dynamic_state
-        // )
+        Pipeline* create_compute_pipeline2(
+            ShaderModule2* shader,
+            const char* entry_point = "main",
+            vk::SpecializationInfo* specialization_info = nullptr,
+            DescriptorSetAllocator* descriptor_set_allocator = nullptr
+        );
+        Pipeline* create_graphics_pipeline(
+            const ArrayProxy<ShaderModule*>& stages,
+            const ArrayProxy<std::string_view>& entry_points,
+            const vk::PipelineVertexInputStateCreateInfo& vertex_input_state,
+            const vk::PipelineInputAssemblyStateCreateInfo& input_assembly_state,
+            const vk::PipelineTessellationStateCreateInfo& tesselation_state,
+            const vk::PipelineViewportStateCreateInfo& viewport_state,
+            const vk::PipelineRasterizationStateCreateInfo& rasterization_state,
+            const vk::PipelineMultisampleStateCreateInfo& multisample_state,
+            const vk::PipelineDepthStencilStateCreateInfo& depth_stencil_state,
+            const vk::PipelineColorBlendStateCreateInfo& color_blend_state,
+            const vk::PipelineDynamicStateCreateInfo& dynamic_state,
+            const vk::PipelineRenderingCreateInfo& rendering_info
+        );
 
         /// @brief Destroy a pipeline of any type
         /// @param pipeline
         void destroy_pipeline(Pipeline* pipeline);
+
+        //////////////////////////////////////////////////////////////////////////////////////////////
+        // Synchronization                                                                          //
+        //////////////////////////////////////////////////////////////////////////////////////////////
 
         /// @brief Wait for a list of fences to complete
         /// @param fences List of fences to wait on
@@ -232,6 +293,11 @@ namespace ember::gpu {
         util::SlabAllocator<Image> m_image_allocator;
         util::SlabAllocator<Pipeline> m_pipeline_allocator;
         util::SlabAllocator<ShaderModule> m_shader_module_allocator;
+        util::SlabAllocator<DescriptorSets> m_descriptor_sets_allocator;
+
+
+        util::SlabAllocator<ShaderModule2, 16> m_shader_module2_allocator;
+        util::SlabAllocator<DescriptorSetAllocator> m_descriptor_set_allocator_allocator;
 
         vk::DeviceMemory allocate_memory(
             vk::MemoryRequirements requirements,

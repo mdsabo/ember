@@ -61,7 +61,9 @@ if(EMBER_EXAMPLES)
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}
     )
-    target_compile_options(ember-gpu.examples.compute-raytracer PRIVATE -Wno-deprecated-declarations)
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        target_compile_options(ember-gpu.examples.compute-raytracer PRIVATE -Wno-deprecated-declarations)
+    endif()
     target_link_libraries(ember-gpu.examples.compute-raytracer PRIVATE ember-gpu eigen stb)
     if(WIN32)
         add_custom_command(

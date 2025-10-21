@@ -98,7 +98,7 @@ int main(int argc, const char* argv[]) {
     std::vector<uint32_t> image_data(IMAGE_DIM_X*IMAGE_DIM_Y);
     renderer.read_buffer(image_data.data(), output_staging_buffer, 0, IMAGE_DIM_X*IMAGE_DIM_Y*4);
 
-    renderer.destroy_descriptor_sets(shader_module, std::move(descriptor_sets));
+    renderer.destroy_descriptor_sets(descriptor_sets);
     renderer.destroy_pipeline(pipeline);
     renderer.destroy_shader_module(shader_module);
     renderer.destroy_buffer(output_staging_buffer);

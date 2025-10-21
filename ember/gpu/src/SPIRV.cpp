@@ -24,18 +24,19 @@ namespace ember::gpu {
         }
     }
 
-    SPIRVCode compile_glsl_to_spirv(const std::filesystem::path& path, bool optimize) {
-        auto source_text = ember::util::read_file_contents(path);
-        auto shader_kind = file_shader_kind(path);
-
+    SPIRVCode compile_glsl_to_spirv(
+        const std::string& glsl,
+        const std::string& filename,
+        shaderc_shader_kind shader_kind,
+        bool optimize
+    ) {
         shaderc::CompileOptions options;
         options.SetGenerateDebugInfo();
         if (optimize) options.SetOptimizationLevel(shaderc_optimization_level_size);
 
         shaderc::Compiler compiler;
-        auto filename = path.filename().string();
         auto spv = compiler.CompileGlslToSpv(
-            source_text,
+            glsl,
             shader_kind,
             filename.c_str(),
             options
@@ -47,6 +48,12 @@ namespace ember::gpu {
         } else {
             return std::vector(spv.begin(), spv.end());
         }
+    }
+
+    SPIRVCode compile_glsl_to_spirv(const std::filesystem::path& path, bool optimize) {
+        auto source_text = ember::util::read_file_contents(path);
+        auto shader_kind = file_shader_kind(path);
+        return compile_glsl_to_spirv(source_text, path.filename().string(), shader_kind, optimize);
     }
 
 }

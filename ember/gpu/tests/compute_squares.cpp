@@ -70,7 +70,7 @@ int main(int argc, const char* argv[]) {
     std::vector<uint32_t> squared(NUM_ELEMENTS);
     renderer.read_buffer(squared.data(), dst_host_buffer, 0, BUFFER_SIZE);
 
-    renderer.destroy_descriptor_sets(shader_module, std::move(descriptor_sets));
+    renderer.destroy_descriptor_sets(descriptor_sets);
     renderer.destroy_pipeline(pipeline);
     renderer.destroy_shader_module(shader_module);
     renderer.destroy_buffer(src_host_buffer);

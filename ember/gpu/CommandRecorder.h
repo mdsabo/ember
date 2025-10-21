@@ -28,7 +28,7 @@ namespace ember::gpu {
         void bind_descriptor_sets(
             const Pipeline* pipeline,
             uint32_t first_set,
-            const DescriptorSetChunk& descriptor_sets
+            const DescriptorSets* descriptor_sets
         );
 
         void dispatch_compute(uint32_t x, uint32_t y, uint32_t z);

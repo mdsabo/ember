@@ -11,6 +11,10 @@ namespace ember::gpu {
         spvReflectDestroyShaderModule(&m_module);
     }
 
+    vk::ShaderStageFlagBits ShaderReflection::get_shader_stage() const {
+        return static_cast<vk::ShaderStageFlagBits>(m_module.shader_stage);
+    }
+
     namespace {
         uint32_t descriptor_count(const size_t dims_count, const uint32_t* dims) {
             uint32_t count = 1;
@@ -22,7 +26,7 @@ namespace ember::gpu {
 
         std::vector<vk::DescriptorSetLayoutBinding> reflect_layout_bindings(
             SpvReflectShaderStageFlagBits shader_stage,
-            size_t binding_count, 
+            size_t binding_count,
             const SpvReflectDescriptorBinding* const* reflect_bindings
         ) {
             std::vector<vk::DescriptorSetLayoutBinding> vk_layout_bindings(binding_count);
@@ -41,7 +45,7 @@ namespace ember::gpu {
     }
 
     // See https://github.com/KhronosGroup/SPIRV-Reflect/blob/main/examples/main_descriptors.cpp
-    std::vector<std::vector<vk::DescriptorSetLayoutBinding>> ShaderReflection::get_descriptor_set_bindings() {
+    std::vector<std::vector<vk::DescriptorSetLayoutBinding>> ShaderReflection::get_descriptor_set_bindings() const {
         uint32_t count = 0;
         auto result = spvReflectEnumerateDescriptorSets(&m_module, &count, nullptr);
         if (result != SPV_REFLECT_RESULT_SUCCESS) throw std::runtime_error("Failed to enumerate shader descriptor sets");
@@ -51,10 +55,11 @@ namespace ember::gpu {
         if (result != SPV_REFLECT_RESULT_SUCCESS) throw std::runtime_error("Failed to enumerate shader descriptor sets");
 
         std::vector<std::vector<vk::DescriptorSetLayoutBinding>> vk_layout_bindings;
+        vk_layout_bindings.reserve(descriptor_sets.size());
         for (const auto reflect_set : descriptor_sets) {
             auto vk_set_layout_bindings = reflect_layout_bindings(
-                m_module.shader_stage, 
-                reflect_set->binding_count, 
+                m_module.shader_stage,
+                reflect_set->binding_count,
                 reflect_set->bindings
             );
             vk_layout_bindings.push_back(vk_set_layout_bindings);
@@ -63,7 +68,7 @@ namespace ember::gpu {
         return vk_layout_bindings;
     }
 
-    std::vector<vk::PushConstantRange> ShaderReflection::get_push_constant_ranges() {
+    std::vector<vk::PushConstantRange> ShaderReflection::get_push_constant_ranges() const {
         uint32_t count = 0;
         auto result = spvReflectEnumeratePushConstantBlocks(&m_module, &count, nullptr);
         if (result != SPV_REFLECT_RESULT_SUCCESS) throw std::runtime_error("Failed to enumerate push constant blocks");
