@@ -567,7 +567,9 @@ namespace ember::gpu {
     }
 
     namespace {
-        vk::PipelineVertexInputStateCreateInfo get_vertex_input_state(
+
+
+        std::vector<vk::VertexInputAttributeDescription> get_vertex_attributes(
             const std::span<const Renderer::ShaderStageInfo>& stages
         ) {
             auto vertex = std::find_if(
@@ -579,10 +581,29 @@ namespace ember::gpu {
             );
 
             if (vertex != stages.end()) {
-                auto input_variables = vertex->module->reflection->get_input_attributes();
+                return vertex->module->reflection->get_input_attributes();
             } else {
                 error(EMBER_GPU_LOG, "No vertex stage found when creating graphics pipeline!");
                 throw std::runtime_error("No vertex stage found when creating graphics pipeline!");
+            }
+        }
+
+        std::vector<vk::Format> get_color_attachment_formats(
+            const std::span<const Renderer::ShaderStageInfo>& stages
+        ) {
+            auto fragment = std::find_if(
+                stages.begin(),
+                stages.end(),
+                [](const Renderer::ShaderStageInfo& stage) {
+                    return stage.module->reflection->get_shader_stage() == vk::ShaderStageFlagBits::eFragment;
+                }
+            );
+
+            if (fragment != stages.end()) {
+                return fragment->module->reflection->get_output_formats();
+            } else {
+                error(EMBER_GPU_LOG, "No fragment stage found when creating graphics pipeline!");
+                throw std::runtime_error("No fragment stage found when creating graphics pipeline!");
             }
         }
     }
@@ -603,7 +624,30 @@ namespace ember::gpu {
             shader_stages.push_back(make_shader_stage_create_info(stage));
         }
 
-        auto vertex_input_state = get_vertex_input_state(stages);
+        auto vertex_attributes = get_vertex_attributes(stages);
+        const vk::PipelineVertexInputStateCreateInfo vertex_input_state {
+            .vertexBindingDescriptionCount = static_cast<uint32_t>(pipeline_state.vertex_bindings.size()),
+            .pVertexBindingDescriptions = pipeline_state.vertex_bindings.data(),
+            .vertexAttributeDescriptionCount = static_cast<uint32_t>(vertex_attributes.size()),
+            .pVertexAttributeDescriptions = vertex_attributes.data()
+        };
+
+        const vk::PipelineViewportStateCreateInfo viewport_state{
+            .viewportCount = 1,
+            .scissorCount = 1
+        };
+
+        std::array dynamic_states{ vk::DynamicState::eViewport, vk::DynamicState::eScissor };
+        const vk::PipelineDynamicStateCreateInfo dynamic_state {
+            .dynamicStateCount = static_cast<uint32_t>(dynamic_states.size()),
+            .pDynamicStates = dynamic_states.data(),
+        };
+
+        auto output_attachment_formats = get_color_attachment_formats(stages);
+        const vk::PipelineRenderingCreateInfo rendering_info {
+            .colorAttachmentCount = static_cast<uint32_t>(output_attachment_formats.size()),
+            .pColorAttachmentFormats = output_attachment_formats.data(),
+        };
 
         const vk::GraphicsPipelineCreateInfo create_info {
             .pNext = &pipeline_state.rendering_info,
@@ -612,11 +656,11 @@ namespace ember::gpu {
             .pVertexInputState = &vertex_input_state,
             .pInputAssemblyState = &pipeline_state.input_assembly_state,
             .pTessellationState = &pipeline_state.tesselation_state,
-            .pViewportState = &pipeline_state.viewport_state,
+            .pViewportState = &viewport_state,
             .pRasterizationState = &pipeline_state.rasterization_state,
-            .pDepthStencilState = &pipeline_state.depth_stencil_state,
+            .pDepthStencilState = nullptr, // FIXME
             .pColorBlendState = &pipeline_state.color_blend_state,
-            .pDynamicState = &pipeline_state.dynamic_state,
+            .pDynamicState = &dynamic_state,
             .layout = pipeline->layout
         };
 

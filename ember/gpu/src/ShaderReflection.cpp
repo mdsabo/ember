@@ -92,6 +92,23 @@ namespace ember::gpu {
         return input_attributes;
     }
 
+    std::vector<vk::Format> ShaderReflection::get_output_formats() const {
+        uint32_t count = 0;
+        auto result = m_module.EnumerateOutputVariables(&count, nullptr);
+        if (result != SPV_REFLECT_RESULT_SUCCESS) throw std::runtime_error("Failed to enumerate shader interface variables");
+
+        std::vector<SpvReflectInterfaceVariable*> output_variables(count);
+        result = m_module.EnumerateOutputVariables(&count, output_variables.data());
+        if (result != SPV_REFLECT_RESULT_SUCCESS) throw std::runtime_error("Failed to enumerate shader interface variables");
+
+        uint32_t offset = 0;
+        std::vector<vk::Format> output_formats(output_variables.size());
+        for (auto i = 0; i < output_variables.size(); i++) {
+            output_formats[i] = static_cast<vk::Format>(output_variables[i]->format);
+        }
+        return output_formats;
+    }
+
     namespace {
         uint32_t descriptor_count(const size_t dims_count, const uint32_t* dims) {
             uint32_t count = 1;

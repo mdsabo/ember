@@ -5,6 +5,7 @@
 #include <shaderc/shaderc.hpp>
 
 #include "ember/util/Filesystem.h"
+#include "ember/util/Log.h"
 
 namespace ember::gpu {
 
@@ -53,6 +54,7 @@ namespace ember::gpu {
     SPIRVCode compile_glsl_to_spirv(const std::filesystem::path& path, bool optimize) {
         auto source_text = ember::util::read_file_contents(path);
         auto shader_kind = file_shader_kind(path);
+        info(EMBER_GPU_LOG, "Loaded shader from file {}, inferred shader type: {}", path.string(), (int)shader_kind);
         return compile_glsl_to_spirv(source_text, path.filename().string(), shader_kind, optimize);
     }
 

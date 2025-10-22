@@ -188,14 +188,13 @@ namespace ember::gpu {
             const DescriptorSetArray<DescriptorSetBlueprint*>& descriptor_set_blueprints
         );
         struct GraphicsPipelineState {
+            std::span<const vk::VertexInputBindingDescription> vertex_bindings;
             vk::PipelineInputAssemblyStateCreateInfo input_assembly_state;
             vk::PipelineTessellationStateCreateInfo tesselation_state;
-            vk::PipelineViewportStateCreateInfo viewport_state;
             vk::PipelineRasterizationStateCreateInfo rasterization_state;
             vk::PipelineMultisampleStateCreateInfo multisample_state;
-            vk::PipelineDepthStencilStateCreateInfo depth_stencil_state;
+            // OPTIONAL vk::PipelineDepthStencilStateCreateInfo depth_stencil_state;
             vk::PipelineColorBlendStateCreateInfo color_blend_state;
-            vk::PipelineDynamicStateCreateInfo dynamic_state;
             vk::PipelineRenderingCreateInfo rendering_info;
         };
         Pipeline* create_graphics_pipeline(
