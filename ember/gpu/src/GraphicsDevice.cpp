@@ -23,7 +23,9 @@ namespace ember::gpu {
             return false;
         }
 
-        constexpr std::array<const char*, 0> REQUIRED_DEVICE_EXTENSIONS = {};
+        constexpr std::array REQUIRED_DEVICE_EXTENSIONS = {
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        };
         bool device_supports_required_extensions(const vk::PhysicalDevice& device) {
             auto device_extensions = device.enumerateDeviceExtensionProperties();
             for (const auto ext : REQUIRED_DEVICE_EXTENSIONS) {

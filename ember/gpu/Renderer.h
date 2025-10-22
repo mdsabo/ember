@@ -32,12 +32,6 @@ namespace ember::gpu {
         Renderer(std::shared_ptr<const GraphicsDevice> device);
         ~Renderer();
 
-        vk::SwapchainKHR create_swapchain_for_surface(
-            vk::SurfaceKHR surface,
-            vk::Extent2D window_extent,
-            vk::SwapchainKHR old_swapchain = VK_NULL_HANDLE
-        );
-
         //////////////////////////////////////////////////////////////////////////////////////////////
         // Command Buffers                                                                          //
         //////////////////////////////////////////////////////////////////////////////////////////////
@@ -193,24 +187,37 @@ namespace ember::gpu {
             const ShaderStageInfo& shader,
             const DescriptorSetArray<DescriptorSetBlueprint*>& descriptor_set_blueprints
         );
+        struct GraphicsPipelineState {
+            vk::PipelineInputAssemblyStateCreateInfo input_assembly_state;
+            vk::PipelineTessellationStateCreateInfo tesselation_state;
+            vk::PipelineViewportStateCreateInfo viewport_state;
+            vk::PipelineRasterizationStateCreateInfo rasterization_state;
+            vk::PipelineMultisampleStateCreateInfo multisample_state;
+            vk::PipelineDepthStencilStateCreateInfo depth_stencil_state;
+            vk::PipelineColorBlendStateCreateInfo color_blend_state;
+            vk::PipelineDynamicStateCreateInfo dynamic_state;
+            vk::PipelineRenderingCreateInfo rendering_info;
+        };
         Pipeline* create_graphics_pipeline(
             const std::span<const ShaderStageInfo>& stages,
-            const vk::PipelineVertexInputStateCreateInfo& vertex_input_state,
-            const vk::PipelineInputAssemblyStateCreateInfo& input_assembly_state,
-            const vk::PipelineTessellationStateCreateInfo& tesselation_state,
-            const vk::PipelineViewportStateCreateInfo& viewport_state,
-            const vk::PipelineRasterizationStateCreateInfo& rasterization_state,
-            const vk::PipelineMultisampleStateCreateInfo& multisample_state,
-            const vk::PipelineDepthStencilStateCreateInfo& depth_stencil_state,
-            const vk::PipelineColorBlendStateCreateInfo& color_blend_state,
-            const vk::PipelineDynamicStateCreateInfo& dynamic_state,
-            const vk::PipelineRenderingCreateInfo& rendering_info,
+            const GraphicsPipelineState& pipeline_state,
             const DescriptorSetArray<DescriptorSetBlueprint*>& descriptor_set_blueprints
         );
 
         /// @brief Destroy a pipeline of any type
         /// @param pipeline
         void destroy_pipeline(Pipeline* pipeline);
+
+        //////////////////////////////////////////////////////////////////////////////////////////////
+        // Presentation                                                                             //
+        //////////////////////////////////////////////////////////////////////////////////////////////
+
+        vk::SwapchainKHR create_swapchain_for_surface(
+            vk::SurfaceKHR surface,
+            vk::Extent2D window_extent,
+            vk::SwapchainKHR old_swapchain = VK_NULL_HANDLE
+        );
+        void destroy_swapchain(vk::SwapchainKHR swapchain);
 
         //////////////////////////////////////////////////////////////////////////////////////////////
         // Synchronization                                                                          //

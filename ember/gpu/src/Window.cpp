@@ -28,7 +28,9 @@ namespace ember::gpu {
     }
 
     Window::~Window() {
-        m_renderer = nullptr; // Clean this up before destroying the window
+        if (m_renderer) {
+            m_renderer = nullptr; // Clean this up before destroying the window
+        }
         SDL_Vulkan_DestroySurface(m_instance, m_surface, nullptr);
         SDL_DestroyWindow(m_window);
     }
@@ -46,7 +48,7 @@ namespace ember::gpu {
         return { w, h };
     }
 
-    void Window::attach_renderer(std::shared_ptr<const GraphicsDevice> graphics_device) {
+    Renderer* Window::create_renderer(std::shared_ptr<const GraphicsDevice> graphics_device) {
         m_renderer = std::make_unique<Renderer>(graphics_device);
 
         auto [ w, h ] = this->size();
@@ -55,6 +57,8 @@ namespace ember::gpu {
             .height = static_cast<uint32_t>(h),
         };
         m_swapchain = m_renderer->create_swapchain_for_surface(m_surface, window_extent);
+
+        return m_renderer.get();
     }
 
 }

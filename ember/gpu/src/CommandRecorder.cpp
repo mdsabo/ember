@@ -56,6 +56,10 @@ namespace ember::gpu {
         image->layout = new_layout;
     }
 
+    void CommandRecorder::fill_buffer(Buffer* dst, uint32_t value, vk::DeviceSize offset, vk::DeviceSize size) {
+        m_command_buffer.fillBuffer(dst->buffer, offset, size, value);
+    }
+
     void CommandRecorder::copy_buffer(Buffer* dst, const Buffer* src, const std::vector<vk::BufferCopy>& copies) {
         if (copies.size() == 0) {
             m_command_buffer.copyBuffer(

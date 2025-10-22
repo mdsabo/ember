@@ -25,15 +25,6 @@ namespace ember::gpu {
         m_device.destroy();
     }
 
-    vk::SwapchainKHR Renderer::create_swapchain_for_surface(
-        vk::SurfaceKHR surface,
-        vk::Extent2D window_extent,
-        vk::SwapchainKHR old_swapchain
-    ) {
-        auto create_info = m_gpu->get_swapchain_create_info_for_surface(surface, window_extent, old_swapchain);
-        return m_device.createSwapchainKHR(create_info);
-    }
-
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Command Buffers                                                                          //
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -554,7 +545,7 @@ namespace ember::gpu {
         const DescriptorSetArray<DescriptorSetBlueprint*>& descriptor_set_blueprints
     ) {
         assert(shader.module != nullptr);
-        assert(shader.entry_point != nullptr);
+        assert(shader.entry_point != nullptr); // TODO: Could reflect this from the module as well
 
         auto pipeline = m_pipeline_allocator.malloc();
         pipeline->bind_point = vk::PipelineBindPoint::eCompute;
@@ -575,18 +566,30 @@ namespace ember::gpu {
         return pipeline;
     }
 
+    namespace {
+        vk::PipelineVertexInputStateCreateInfo get_vertex_input_state(
+            const std::span<const Renderer::ShaderStageInfo>& stages
+        ) {
+            auto vertex = std::find_if(
+                stages.begin(),
+                stages.end(),
+                [](const Renderer::ShaderStageInfo& stage) {
+                    return stage.module->reflection->get_shader_stage() == vk::ShaderStageFlagBits::eVertex;
+                }
+            );
+
+            if (vertex != stages.end()) {
+                auto input_variables = vertex->module->reflection->get_input_attributes();
+            } else {
+                error(EMBER_GPU_LOG, "No vertex stage found when creating graphics pipeline!");
+                throw std::runtime_error("No vertex stage found when creating graphics pipeline!");
+            }
+        }
+    }
+
     Pipeline* Renderer::create_graphics_pipeline(
         const std::span<const ShaderStageInfo>& stages,
-        const vk::PipelineVertexInputStateCreateInfo& vertex_input_state,
-        const vk::PipelineInputAssemblyStateCreateInfo& input_assembly_state,
-        const vk::PipelineTessellationStateCreateInfo& tesselation_state,
-        const vk::PipelineViewportStateCreateInfo& viewport_state,
-        const vk::PipelineRasterizationStateCreateInfo& rasterization_state,
-        const vk::PipelineMultisampleStateCreateInfo& multisample_state,
-        const vk::PipelineDepthStencilStateCreateInfo& depth_stencil_state,
-        const vk::PipelineColorBlendStateCreateInfo& color_blend_state,
-        const vk::PipelineDynamicStateCreateInfo& dynamic_state,
-        const vk::PipelineRenderingCreateInfo& rendering_info,
+        const GraphicsPipelineState& pipeline_state,
         const DescriptorSetArray<DescriptorSetBlueprint*>& descriptor_set_blueprints
     ) {
         auto pipeline = m_pipeline_allocator.malloc();
@@ -600,18 +603,20 @@ namespace ember::gpu {
             shader_stages.push_back(make_shader_stage_create_info(stage));
         }
 
+        auto vertex_input_state = get_vertex_input_state(stages);
+
         const vk::GraphicsPipelineCreateInfo create_info {
-            .pNext = &rendering_info,
+            .pNext = &pipeline_state.rendering_info,
             .stageCount = static_cast<uint32_t>(shader_stages.size()),
             .pStages = shader_stages.data(),
             .pVertexInputState = &vertex_input_state,
-            .pInputAssemblyState = &input_assembly_state,
-            .pTessellationState = &tesselation_state,
-            .pViewportState = &viewport_state,
-            .pRasterizationState = &rasterization_state,
-            .pDepthStencilState = &depth_stencil_state,
-            .pColorBlendState = &color_blend_state,
-            .pDynamicState = &dynamic_state,
+            .pInputAssemblyState = &pipeline_state.input_assembly_state,
+            .pTessellationState = &pipeline_state.tesselation_state,
+            .pViewportState = &pipeline_state.viewport_state,
+            .pRasterizationState = &pipeline_state.rasterization_state,
+            .pDepthStencilState = &pipeline_state.depth_stencil_state,
+            .pColorBlendState = &pipeline_state.color_blend_state,
+            .pDynamicState = &pipeline_state.dynamic_state,
             .layout = pipeline->layout
         };
 
@@ -628,6 +633,23 @@ namespace ember::gpu {
         m_device.destroyPipeline(pipeline->pipeline);
         m_device.destroyPipelineLayout(pipeline->layout);
         m_pipeline_allocator.free(pipeline);
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////
+    // Presentation                                                                             //
+    //////////////////////////////////////////////////////////////////////////////////////////////
+
+    vk::SwapchainKHR Renderer::create_swapchain_for_surface(
+        vk::SurfaceKHR surface,
+        vk::Extent2D window_extent,
+        vk::SwapchainKHR old_swapchain
+    ) {
+        auto create_info = m_gpu->get_swapchain_create_info_for_surface(surface, window_extent, old_swapchain);
+        return m_device.createSwapchainKHR(create_info);
+    }
+
+    void Renderer::destroy_swapchain(vk::SwapchainKHR swapchain) {
+        m_device.destroySwapchainKHR(swapchain);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////

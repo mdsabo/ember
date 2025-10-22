@@ -20,6 +20,7 @@ namespace ember::gpu {
         );
         void transition_image_layout(Image* image, vk::ImageLayout new_layout);
 
+        void fill_buffer(Buffer* dst, uint32_t value, vk::DeviceSize offset, vk::DeviceSize size);
         void copy_buffer(Buffer* dst, const Buffer* src, const std::vector<vk::BufferCopy>& copies = {});
         void copy_image_to_buffer(Buffer* buffer, const Image* image);
 

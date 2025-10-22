@@ -26,7 +26,7 @@ namespace ember::gpu {
         std::pair<int, int> size() const;
         inline vk::SurfaceKHR surface() const { return m_surface; }
 
-        void attach_renderer(std::shared_ptr<const GraphicsDevice> graphics_device);
+        Renderer* create_renderer(std::shared_ptr<const GraphicsDevice> graphics_device);
         Renderer* get_renderer() { return m_renderer.get(); }
 
     private:
