@@ -79,11 +79,12 @@ int main(int argc, const char* argv[]) {
         .append("examples/raytracer.comp");
     auto shader_module = renderer.create_shader_module(shader_path);
 
-    auto pipeline = renderer.create_compute_pipeline(shader_module);
+    auto descriptor_set_blueprints = renderer.create_descriptor_set_blueprints(std::array{shader_module});
+    auto descriptor_sets = renderer.create_descriptor_sets(descriptor_set_blueprints[0], 1);
+    renderer.bind_buffers(descriptor_set_blueprints[0], descriptor_sets, std::array{ vertex_buffer }, 0);
+    renderer.bind_images(descriptor_set_blueprints[0], descriptor_sets, std::array{ output_image }, 1);
 
-    auto descriptor_sets = renderer.create_descriptor_sets(shader_module, 0, 1);
-    renderer.bind_buffers(shader_module, descriptor_sets, {}, { vertex_buffer });
-    renderer.bind_images(shader_module, descriptor_sets, { .binding_index = 1 }, { output_image });
+    auto pipeline = renderer.create_compute_pipeline({ shader_module }, descriptor_set_blueprints);
 
     auto command_buffer = renderer.create_command_buffer();
     renderer.record_submit_command_buffer([&](CommandRecorder& recorder) {
@@ -98,8 +99,9 @@ int main(int argc, const char* argv[]) {
     std::vector<uint32_t> image_data(IMAGE_DIM_X*IMAGE_DIM_Y);
     renderer.read_buffer(image_data.data(), output_staging_buffer, 0, IMAGE_DIM_X*IMAGE_DIM_Y*4);
 
-    renderer.destroy_descriptor_sets(descriptor_sets);
     renderer.destroy_pipeline(pipeline);
+    renderer.destroy_descriptor_sets(descriptor_set_blueprints[0], descriptor_sets);
+    renderer.destroy_descriptor_set_blueprints(descriptor_set_blueprints);
     renderer.destroy_shader_module(shader_module);
     renderer.destroy_buffer(output_staging_buffer);
     renderer.destroy_image(output_image);

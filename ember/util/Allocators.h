@@ -15,7 +15,7 @@ namespace ember::util {
     public:
         SlabAllocator() {}
 
-        T* malloc() {
+        [[nodiscard]] T* malloc() {
             for (auto& slab : m_slabs) {
                 if ((slab.num_free != 0)) {
                     auto index = ffs(slab.freelist);
@@ -23,7 +23,7 @@ namespace ember::util {
                 }
             }
 
-            m_slabs.push_front(Slab());
+            m_slabs.emplace_front();
             auto& new_slab = m_slabs.front();
             return new_slab.allocate(0);
         }
@@ -40,6 +40,12 @@ namespace ember::util {
             }
 
             throw std::runtime_error("Attempted to free object from a slab to which it does not belong");
+        }
+
+        size_t allocated_count() {
+            size_t cnt = 0;
+            for (const auto& slab : m_slabs) cnt += (E - slab.num_free);
+            return cnt;
         }
 
     private:

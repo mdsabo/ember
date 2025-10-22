@@ -88,13 +88,13 @@ namespace ember::gpu {
     void CommandRecorder::bind_descriptor_sets(
         const Pipeline* pipeline,
         uint32_t first_set,
-        const DescriptorSets* descriptor_sets
+        const ArrayProxy<vk::DescriptorSet>& descriptor_sets
     ) {
         m_command_buffer.bindDescriptorSets(
             pipeline->bind_point,
             pipeline->layout,
             first_set,
-            descriptor_sets->descriptor_sets,
+            descriptor_sets,
             {}
         );
     }

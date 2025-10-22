@@ -28,47 +28,27 @@ namespace ember::gpu {
         vk::Pipeline pipeline;
     };
 
-    constexpr auto DEFAULT_MAX_DESCRIPTOR_SETS_PER_POOL = 32768;
+    struct ShaderModule {
+        vk::ShaderModule module;
+        std::unique_ptr<ShaderReflection> reflection = nullptr;
+    };
 
-    struct DescriptorPool {
+    constexpr auto DEFAULT_MAX_DESCRIPTOR_SETS_PER_POOL = 32768;
+    constexpr auto MAX_DESCRIPTOR_SETS = 4;
+    template<typename T>
+    using DescriptorSetArray = std::array<T, MAX_DESCRIPTOR_SETS>;
+
+    struct DescriptorSetBlueprint {
+        std::vector<vk::DescriptorSetLayoutBinding> layout_bindings;
+        vk::DescriptorSetLayout layout;
+
         vk::DescriptorPool pool;
         uint32_t allocated_sets = 0;
         uint32_t max_sets = DEFAULT_MAX_DESCRIPTOR_SETS_PER_POOL;
         uint32_t highwater_sets = 0;
-    };
 
-    struct ShaderModule2 {
-        vk::ShaderModule module;
-        ShaderReflection reflection;
-    };
-
-    constexpr auto MAX_DESCRIPTOR_SETS = 4;
-    template<typename T>
-    using DescriptorSetArray = std::array<T, MAX_DESCRIPTOR_SETS>;
-    constexpr auto MAX_DESCRIPTOR_BINDINGS_PER_SET = 16;
-    template<typename T>
-    using DescriptorBindingArray = DescriptorSetArray<std::array<T, MAX_DESCRIPTOR_BINDINGS_PER_SET>>;
-
-    struct DescriptorSetBlueprint {
-        DescriptorSetArray<std::vector<vk::DescriptorSetLayoutBinding>> layout_bindings;
-        DescriptorSetArray<vk::DescriptorSetLayout> layouts;
-        DescriptorSetArray<DescriptorPool> pools;
-    };
-
-    struct ShaderModule {
-        vk::ShaderStageFlagBits stage;
-        vk::ShaderModule shader_module;
-        uint32_t descriptor_set_count;
-        DescriptorSetArray<size_t> descriptor_binding_counts;
-        DescriptorSetArray<vk::DescriptorSetLayout> descriptor_set_layouts;
-        DescriptorSetArray<DescriptorPool> descriptor_pools;
-        DescriptorBindingArray<vk::DescriptorType> descriptor_types;
-        std::vector<vk::PushConstantRange> push_constant_ranges;
-    };
-
-    struct DescriptorSets {
-        ShaderModule* shader_module;
-        uint32_t set_index;
-        std::vector<vk::DescriptorSet> descriptor_sets;
+        inline vk::DescriptorType descriptor_type(uint32_t binding) const {
+            return vk::DescriptorType(layout_bindings[binding].descriptorType);
+        }
     };
 }

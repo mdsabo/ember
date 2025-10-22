@@ -52,12 +52,20 @@ int main(int argc, const char* argv[]) {
     for (uint32_t i = 0; i < NUM_ELEMENTS; i++) data[i] = i;
     renderer.write_buffer(src_host_buffer, data.data(), 0, BUFFER_SIZE);
 
-    auto shader_path = std::filesystem::path(EMBER_GPU_DIR).append("tests/compute_squares.comp");
+    auto shader_path = std::filesystem::path(EMBER_GPU_DIR)
+        .append("tests/compute_squares.comp");
     auto shader_module = renderer.create_shader_module(shader_path);
-    auto pipeline = renderer.create_compute_pipeline(shader_module);
 
-    auto descriptor_sets = renderer.create_descriptor_sets(shader_module, 0, 1);
-    renderer.bind_buffers(shader_module, descriptor_sets, {}, { src_gpu_buffer, dst_gpu_buffer });
+    auto descriptor_set_blueprints = renderer.create_descriptor_set_blueprints(std::array{shader_module});
+    auto descriptor_sets = renderer.create_descriptor_sets(descriptor_set_blueprints[0], 1);
+    renderer.bind_buffers(
+        descriptor_set_blueprints[0],
+        descriptor_sets,
+        std::array{ src_gpu_buffer, dst_gpu_buffer },
+        0
+    );
+
+    auto pipeline = renderer.create_compute_pipeline({ shader_module }, descriptor_set_blueprints);
 
     renderer.record_submit_command_buffer([&](CommandRecorder& recorder) {
         recorder.copy_buffer(src_gpu_buffer, src_host_buffer);
@@ -70,8 +78,9 @@ int main(int argc, const char* argv[]) {
     std::vector<uint32_t> squared(NUM_ELEMENTS);
     renderer.read_buffer(squared.data(), dst_host_buffer, 0, BUFFER_SIZE);
 
-    renderer.destroy_descriptor_sets(descriptor_sets);
     renderer.destroy_pipeline(pipeline);
+    renderer.destroy_descriptor_sets(descriptor_set_blueprints[0], descriptor_sets);
+    renderer.destroy_descriptor_set_blueprints(descriptor_set_blueprints);
     renderer.destroy_shader_module(shader_module);
     renderer.destroy_buffer(src_host_buffer);
     renderer.destroy_buffer(src_gpu_buffer);

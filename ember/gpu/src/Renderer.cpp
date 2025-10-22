@@ -1,5 +1,6 @@
 #include "Renderer.h"
 
+#include "ember/util/Log.h"
 #include "SPIRV.h"
 #include "ShaderReflection.h"
 #include "Util.h"
@@ -14,6 +15,12 @@ namespace ember::gpu {
     }
 
     Renderer::~Renderer() {
+        assert(m_buffer_allocator.allocated_count() == 0);
+        assert(m_image_allocator.allocated_count() == 0);
+        assert(m_pipeline_allocator.allocated_count() == 0);
+        assert(m_shader_module2_allocator.allocated_count() == 0);
+        assert(m_descriptor_set_blueprint_allocator.allocated_count() == 0);
+
         m_device.destroyCommandPool(m_command_pool);
         m_device.destroy();
     }
@@ -62,14 +69,14 @@ namespace ember::gpu {
         auto command_buffer = create_command_buffer();
         record_command_buffer(command_buffer, fn);
         auto fence = submit_command_buffer(command_buffer);
-        wait_for_fences({ fence });
+        wait_for_fences(std::array{fence});
         destroy_command_buffer(command_buffer);
     }
 
     vk::Fence Renderer::submit_command_buffers(
-        const ArrayProxy<vk::CommandBuffer>& command_buffers,
-        const ArrayProxy<vk::Semaphore>& wait_semaphores,
-        const ArrayProxy<vk::Semaphore>& signal_sempahores
+        const std::span<const vk::CommandBuffer>& command_buffers,
+        const std::span<const vk::Semaphore>& wait_semaphores,
+        const std::span<const vk::Semaphore>& signal_sempahores
     ) {
         for (auto& cmdbuf : command_buffers) {
             cmdbuf.end();
@@ -79,7 +86,7 @@ namespace ember::gpu {
             .waitSemaphoreCount = 0,
             .pWaitSemaphores = nullptr,
             .pWaitDstStageMask = nullptr,
-            .commandBufferCount = command_buffers.size(),
+            .commandBufferCount = static_cast<uint32_t>(command_buffers.size()),
             .pCommandBuffers = command_buffers.data(),
             .signalSemaphoreCount = 0,
             .pSignalSemaphores = nullptr
@@ -92,10 +99,10 @@ namespace ember::gpu {
 
     vk::Fence Renderer::submit_command_buffer(
         vk::CommandBuffer command_buffer,
-        const ArrayProxy<vk::Semaphore>& wait_semaphores,
-        const ArrayProxy<vk::Semaphore>& signal_sempahores
+        const std::span<const vk::Semaphore>& wait_semaphores,
+        const std::span<const vk::Semaphore>& signal_sempahores
     ) {
-        return submit_command_buffers(command_buffer, wait_semaphores, signal_sempahores);
+        return submit_command_buffers(std::array{command_buffer}, wait_semaphores, signal_sempahores);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -158,39 +165,14 @@ namespace ember::gpu {
 
     void Renderer::read_buffer(void* dst, const Buffer* buffer, vk::DeviceSize offset, vk::DeviceSize size) const {
         auto src = m_device.mapMemory(buffer->memory, offset, size);
-        memcpy(dst, src, size);
+        std::memcpy(dst, src, size);
         m_device.unmapMemory(buffer->memory);
     }
 
     void Renderer::write_buffer(Buffer* buffer, const void* src, vk::DeviceSize offset, vk::DeviceSize size) {
         auto dst = m_device.mapMemory(buffer->memory, offset, size);
-        memcpy(dst, src, size);
+        std::memcpy(dst, src, size);
         m_device.unmapMemory(buffer->memory);
-    }
-
-    void Renderer::bind_buffers(
-        const ShaderModule* shader_module,
-        const DescriptorSets* descriptor_sets,
-        const DescriptorWrite& descriptor_write,
-        const ArrayProxy<Buffer*>& buffers
-    ) {
-        std::vector<vk::DescriptorBufferInfo> buffer_infos(buffers.size());
-        for (auto i = 0; i < buffers.size(); i++) {
-            buffer_infos[i].buffer = buffers.data()[i]->buffer;
-            buffer_infos[i].offset = 0;
-            buffer_infos[i].range = buffers.data()[i]->size;
-        }
-
-        const vk::WriteDescriptorSet write_descriptor_set {
-            .dstSet = descriptor_sets->descriptor_sets[descriptor_write.set_index],
-            .dstBinding = descriptor_write.binding_index,
-            .dstArrayElement = descriptor_write.array_index,
-            .descriptorCount = buffers.size(),
-            .descriptorType = shader_module->descriptor_types[descriptor_write.set_index][descriptor_write.binding_index],
-            .pBufferInfo = buffer_infos.data(),
-        };
-
-        m_device.updateDescriptorSets(write_descriptor_set, {});
     }
 
     namespace {
@@ -261,96 +243,20 @@ namespace ember::gpu {
     void Renderer::read_image(void* dst, const Image* image) {
         auto properties = m_device.getImageMemoryRequirements(image->image);
         auto src = m_device.mapMemory(image->memory, 0, properties.size);
-        memcpy(dst, src, properties.size);
+        std::memcpy(dst, src, properties.size);
         m_device.unmapMemory(image->memory);
-    }
-
-    void Renderer::bind_images(
-        const ShaderModule* shader_module,
-        const DescriptorSets* descriptor_sets,
-        const DescriptorWrite& descriptor_write,
-        const ArrayProxy<Image*>& images
-    ) {
-        std::vector<vk::DescriptorImageInfo> image_infos(images.size());
-        for (auto i = 0; i < images.size(); i++) {
-            image_infos[i].imageView = images.data()[i]->view;
-            image_infos[i].imageLayout = vk::ImageLayout::eGeneral;
-        }
-
-        const vk::WriteDescriptorSet write_descriptor_set {
-            .dstSet = descriptor_sets->descriptor_sets[descriptor_write.set_index],
-            .dstBinding = descriptor_write.binding_index,
-            .dstArrayElement = descriptor_write.array_index,
-            .descriptorCount = images.size(),
-            .descriptorType = shader_module->descriptor_types[descriptor_write.set_index][descriptor_write.binding_index],
-            .pImageInfo = image_infos.data(),
-        };
-
-        m_device.updateDescriptorSets(write_descriptor_set, {});
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Descriptor Sets                                                                          //
     //////////////////////////////////////////////////////////////////////////////////////////////
 
-    DescriptorSets* Renderer::create_descriptor_sets(
-        ShaderModule* shader_module,
-        uint32_t set_index,
-        uint32_t descriptor_set_count
-    ) {
-        auto& descriptor_pool = shader_module->descriptor_pools[set_index];
-        const auto layout = shader_module->descriptor_set_layouts[set_index];
-
-        // We want to create N sets of the same descriptor set layout so we duplicate
-        // the layout N times.  Vulkan will then create N sets with that layout.
-        std::vector<vk::DescriptorSetLayout> layouts(descriptor_set_count, layout);
-
-        const vk::DescriptorSetAllocateInfo allocate_info {
-            .descriptorPool = descriptor_pool.pool,
-            .descriptorSetCount = descriptor_set_count,
-            .pSetLayouts = layouts.data()
-        };
-
-        auto descriptor_sets = m_descriptor_sets_allocator.malloc();
-        descriptor_sets->shader_module = shader_module;
-        descriptor_sets->set_index = set_index;
-        descriptor_sets->descriptor_sets = m_device.allocateDescriptorSets(allocate_info);
-
-        descriptor_pool.allocated_sets += descriptor_set_count;
-        descriptor_pool.highwater_sets = std::max(descriptor_pool.allocated_sets, descriptor_pool.highwater_sets);
-
-        return descriptor_sets;
-    }
-
-    void Renderer::destroy_descriptor_sets(DescriptorSets* descriptor_sets) {
-        auto& pool = descriptor_sets->shader_module->descriptor_pools[descriptor_sets->set_index];
-        m_device.freeDescriptorSets(pool.pool, descriptor_sets->descriptor_sets);
-        pool.allocated_sets -= descriptor_sets->descriptor_sets.size();
-        m_descriptor_sets_allocator.free(descriptor_sets);
-    }
-
-    void Renderer::merge_descriptor_sets(DescriptorSets* dst, DescriptorSets* src) {
-        assert(src->shader_module == dst->shader_module);
-        assert(src->set_index == dst->set_index);
-
-        dst->descriptor_sets.reserve(dst->descriptor_sets.size() + src->descriptor_sets.size());
-        std::copy(
-            src->descriptor_sets.begin(),
-            src->descriptor_sets.end(),
-            std::back_inserter(dst->descriptor_sets)
-        );
-        m_descriptor_sets_allocator.free(src);
-    }
-
-
-
-
     namespace {
         void merge_shader_descriptor_set_layout_bindings(
-            const ShaderModule2* shader,
+            const ShaderModule* shader,
             DescriptorSetArray<std::vector<vk::DescriptorSetLayoutBinding>>& layout_bindings
         ) {
-            auto shader_bindings = shader->reflection.get_descriptor_set_bindings();
+            auto shader_bindings = shader->reflection->get_descriptor_set_bindings();
 
             // For each set in the shader's set layouts
             for (auto set = 0; set < shader_bindings.size(); set++) {
@@ -380,7 +286,7 @@ namespace ember::gpu {
         }
 
         DescriptorSetArray<std::vector<vk::DescriptorSetLayoutBinding>> get_descriptor_set_layout_bindings(
-            const ArrayProxy<ShaderModule2*>& shader_stages
+            const std::span<const ShaderModule* const>& shader_stages
         ) {
             DescriptorSetArray<std::vector<vk::DescriptorSetLayoutBinding>> bindings;
             for (const auto shader : shader_stages) {
@@ -390,23 +296,27 @@ namespace ember::gpu {
         }
     }
 
-    DescriptorSetBlueprint* Renderer::create_descriptor_set_blueprint(
-        const ArrayProxy<ShaderModule2*>& shader_stages
+    DescriptorSetArray<DescriptorSetBlueprint*> Renderer::create_descriptor_set_blueprints(
+        const std::span<const ShaderModule* const>& shader_stages
     ) {
-        auto descriptor_set_allocator = m_descriptor_set_blueprint_allocator.malloc();
+        auto layout_bindings = get_descriptor_set_layout_bindings(shader_stages);
 
-        descriptor_set_allocator->layout_bindings = get_descriptor_set_layout_bindings(shader_stages);
+        DescriptorSetArray<DescriptorSetBlueprint*> blueprints;
 
-        const auto& layout_bindings = descriptor_set_allocator->layout_bindings;
         for (auto set = 0; set < MAX_DESCRIPTOR_SETS; set++) {
-            const auto& set_bindings = layout_bindings[set];
-            if (set_bindings.size() == 0) continue; // skip empty sets
+            auto& blueprint = blueprints[set];
+            blueprint = m_descriptor_set_blueprint_allocator.malloc();
+
+            if (layout_bindings[set].size() == 0) continue; // skip empty sets
+
+            blueprint->layout_bindings = std::move(layout_bindings[set]);
+            const auto& set_bindings = blueprint->layout_bindings;
 
             const vk::DescriptorSetLayoutCreateInfo layout_create_info {
                 .bindingCount = static_cast<uint32_t>(set_bindings.size()),
                 .pBindings = set_bindings.data()
             };
-            descriptor_set_allocator->layouts[set] = m_device.createDescriptorSetLayout(layout_create_info);
+            blueprint->layout = m_device.createDescriptorSetLayout(layout_create_info);
 
             /*
             From the Vulkan Spec:
@@ -432,98 +342,128 @@ namespace ember::gpu {
                 .poolSizeCount = static_cast<uint32_t>(pool_sizes.size()),
                 .pPoolSizes = pool_sizes.data()
             };
-            descriptor_set_allocator->pools[set].pool = m_device.createDescriptorPool(pool_create_info);
+            blueprint->pool = m_device.createDescriptorPool(pool_create_info);
         }
 
-        return descriptor_set_allocator;
+        return blueprints;
     }
 
-    void Renderer::destroy_descriptor_set_blueprint(DescriptorSetBlueprint* dsa) {
-        for (auto layout : dsa->layouts) {
-            if (layout != VK_NULL_HANDLE) m_device.destroyDescriptorSetLayout(layout);
+    void Renderer::destroy_descriptor_set_blueprints(
+        const std::span<DescriptorSetBlueprint*>& blueprints
+    ) {
+        for (const auto& blueprint : blueprints) {
+            assert(blueprint->allocated_sets == 0);
+            m_device.destroyDescriptorPool(blueprint->pool);
+            m_device.destroyDescriptorSetLayout(blueprint->layout);
+            m_descriptor_set_blueprint_allocator.free(blueprint);
         }
-        for (auto& pool : dsa->pools) {
-            if (pool.pool != VK_NULL_HANDLE) m_device.destroyDescriptorPool(pool.pool);
+    }
+
+    std::vector<vk::DescriptorSet> Renderer::create_descriptor_sets(
+        DescriptorSetBlueprint* descriptor_set_blueprint,
+        uint32_t num_descriptor_sets
+    ) {
+        descriptor_set_blueprint->allocated_sets += num_descriptor_sets;
+        descriptor_set_blueprint->highwater_sets = std::max(
+            descriptor_set_blueprint->allocated_sets,
+            descriptor_set_blueprint->highwater_sets
+        );
+
+        // We want to create N sets of the same descriptor set layout so we duplicate
+        // the layout N times.  Vulkan will then create N sets with that layout.
+        std::vector<vk::DescriptorSetLayout> layouts(num_descriptor_sets, descriptor_set_blueprint->layout);
+
+        const vk::DescriptorSetAllocateInfo allocate_info {
+            .descriptorPool = descriptor_set_blueprint->pool,
+            .descriptorSetCount = num_descriptor_sets,
+            .pSetLayouts = layouts.data()
+        };
+        return m_device.allocateDescriptorSets(allocate_info);
+    }
+
+    void Renderer::destroy_descriptor_sets(
+        DescriptorSetBlueprint* descriptor_set_blueprint,
+        const std::span<const vk::DescriptorSet>& descriptor_sets
+    ) {
+        descriptor_set_blueprint->allocated_sets -= descriptor_sets.size();
+        m_device.freeDescriptorSets(descriptor_set_blueprint->pool, descriptor_sets);
+    }
+
+    namespace {
+        vk::WriteDescriptorSet make_descriptor_update(
+            const DescriptorSetBlueprint* descriptor_set_blueprint,
+            const std::span<const vk::DescriptorSet>& descriptor_sets,
+            uint32_t binding_index,
+            uint32_t array_index
+        ) {
+            auto descriptor_type = descriptor_set_blueprint->descriptor_type(binding_index);
+            return vk::WriteDescriptorSet {
+                // We're basically telling vulkan to bind our buffer/image/view to the descriptor sets
+                // in the descriptor_set array.
+                // binding_index determines which binding slot those resources will be written into.
+                // e.g. layout(binding = 2) buffer ... --> binding_index = 2
+                .dstSet = *descriptor_sets.data(),
+                .dstBinding = binding_index,
+                .dstArrayElement = array_index,
+                .descriptorType = descriptor_type,
+            };
         }
-        m_descriptor_set_blueprint_allocator.free(dsa);
+    }
+
+    void Renderer::bind_buffers(
+        const DescriptorSetBlueprint* descriptor_set_blueprint,
+        const std::span<const vk::DescriptorSet>& descriptor_sets,
+        const std::span<const Buffer* const>& buffers,
+        uint32_t binding_index,
+        uint32_t array_index
+    ) {
+        std::vector<vk::DescriptorBufferInfo> buffer_infos(buffers.size());
+        for (auto i = 0; i < buffers.size(); i++) {
+            buffer_infos[i].buffer = buffers.data()[i]->buffer;
+            buffer_infos[i].offset = 0;
+            buffer_infos[i].range = buffers.data()[i]->size;
+        }
+
+        auto write_descriptor_set = make_descriptor_update(
+            descriptor_set_blueprint,
+            descriptor_sets,
+            binding_index,
+            array_index
+        );
+        write_descriptor_set.setBufferInfo(buffer_infos);
+
+        m_device.updateDescriptorSets(write_descriptor_set, {});
+    }
+
+    void Renderer::bind_images(
+        const DescriptorSetBlueprint* descriptor_set_blueprint,
+        const std::span<const vk::DescriptorSet>& descriptor_sets,
+        const std::span<const Image* const>& images,
+        uint32_t binding_index,
+        uint32_t array_index
+    ) {
+        std::vector<vk::DescriptorImageInfo> image_infos(images.size());
+        for (auto i = 0; i < images.size(); i++) {
+            image_infos[i].imageView = images.data()[i]->view;
+            image_infos[i].imageLayout = vk::ImageLayout::eGeneral;
+        }
+
+        auto write_descriptor_set = make_descriptor_update(
+            descriptor_set_blueprint,
+            descriptor_sets,
+            binding_index,
+            array_index
+        );
+        write_descriptor_set.setImageInfo(image_infos);
+
+        m_device.updateDescriptorSets(write_descriptor_set, {});
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Shaders                                                                                  //
     //////////////////////////////////////////////////////////////////////////////////////////////
 
-    ShaderModule* Renderer::create_shader_module(const std::filesystem::path& path) {
-        auto spirv = compile_glsl_to_spirv(path, false);
-        const vk::ShaderModuleCreateInfo create_info {
-            .codeSize = spirv_code_size(spirv), // codeSize is the size, in bytes (not words for some reason), of the code pointed to by pCode.
-            .pCode = spirv.data()
-        };
-
-        auto reflection = ShaderReflection(spirv);
-
-        auto shader_module = m_shader_module_allocator.malloc();
-        shader_module->stage = reflection.get_shader_stage();
-        shader_module->shader_module = m_device.createShaderModule(create_info);
-
-        auto descriptor_set_layout_bindings = reflection.get_descriptor_set_bindings();
-        shader_module->descriptor_set_count = descriptor_set_layout_bindings.size();
-        for (auto set = 0; set < descriptor_set_layout_bindings.size(); set++) {
-            shader_module->descriptor_binding_counts[set] = descriptor_set_layout_bindings[set].size();
-
-            const vk::DescriptorSetLayoutCreateInfo layout_create_info {
-                .bindingCount = static_cast<uint32_t>(descriptor_set_layout_bindings[set].size()),
-                .pBindings = descriptor_set_layout_bindings[set].data()
-            };
-            shader_module->descriptor_set_layouts[set] = m_device.createDescriptorSetLayout(layout_create_info);
-
-            /*
-            From the Vulkan Spec:
-                If multiple VkDescriptorPoolSize structures containing the same descriptor type appear in the
-                pPoolSizes array then the pool will be created with enough storage for the total number of descriptors
-                of each type.
-
-            Therefore we can simply create a pool size structure for each entry in the binding array and let
-            the driver handle coalescing them for us.
-            */
-            std::array<vk::DescriptorPoolSize, MAX_DESCRIPTOR_BINDINGS_PER_SET> pool_sizes;
-            for (auto binding = 0; binding < descriptor_set_layout_bindings[set].size(); binding++) {
-                pool_sizes[set].type = descriptor_set_layout_bindings[set][binding].descriptorType;
-                pool_sizes[set].descriptorCount = descriptor_set_layout_bindings[set][binding].descriptorCount;
-
-                shader_module->descriptor_types[set][binding] = descriptor_set_layout_bindings[set][binding].descriptorType;
-            }
-
-            const vk::DescriptorPoolCreateInfo pool_create_info {
-                .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-                .maxSets = DEFAULT_MAX_DESCRIPTOR_SETS_PER_POOL,
-                .poolSizeCount = static_cast<uint32_t>(descriptor_set_layout_bindings[set].size()),
-                .pPoolSizes = pool_sizes.data()
-            };
-
-            shader_module->descriptor_pools[set].pool = m_device.createDescriptorPool(pool_create_info);
-        }
-
-        shader_module->push_constant_ranges = reflection.get_push_constant_ranges();
-
-        return shader_module;
-    }
-
-    void Renderer::destroy_shader_module(ShaderModule* module) {
-        for (auto i = 0; i < module->descriptor_set_count; i++) {
-            const auto& pool = module->descriptor_pools[i];
-            assert(pool.allocated_sets == 0);
-            m_device.destroyDescriptorPool(pool.pool);
-            m_device.destroyDescriptorSetLayout(module->descriptor_set_layouts[i]);
-        }
-
-        m_device.destroyShaderModule(module->shader_module);
-        m_shader_module_allocator.free(module);
-    }
-
-
-
-
-    ShaderModule2* Renderer::create_shader_module2(
+    ShaderModule* Renderer::create_shader_module(
         const std::string& glsl,
         const std::string& filename,
         shaderc_shader_kind shader_kind,
@@ -537,11 +477,11 @@ namespace ember::gpu {
 
         auto shader_module = m_shader_module2_allocator.malloc();
         shader_module->module = m_device.createShaderModule(create_info);
-        shader_module->reflection = ShaderReflection(spirv);
+        shader_module->reflection = std::make_unique<ShaderReflection>(spirv);
         return shader_module;
     }
 
-    ShaderModule2* Renderer::create_shader_module2(const std::filesystem::path& path, bool optimize) {
+    ShaderModule* Renderer::create_shader_module(const std::filesystem::path& path, bool optimize) {
         auto spirv = compile_glsl_to_spirv(path, optimize);
         const vk::ShaderModuleCreateInfo create_info {
             .codeSize = spirv_code_size(spirv),
@@ -550,11 +490,11 @@ namespace ember::gpu {
 
         auto shader_module = m_shader_module2_allocator.malloc();
         shader_module->module = m_device.createShaderModule(create_info);
-        shader_module->reflection = ShaderReflection(spirv);
+        shader_module->reflection = std::make_unique<ShaderReflection>(spirv);
         return shader_module;
     }
 
-    void Renderer::destroy_shader_module2(ShaderModule2* shader_module) {
+    void Renderer::destroy_shader_module(ShaderModule* shader_module) {
         m_device.destroyShaderModule(shader_module->module);
         m_shader_module2_allocator.free(shader_module); // cleans up reflection
     }
@@ -563,89 +503,66 @@ namespace ember::gpu {
     // Pipelines                                                                                //
     //////////////////////////////////////////////////////////////////////////////////////////////
 
-    vk::PipelineLayout Renderer::create_pipeline_layout(const ShaderModule* shader_module) {
-        const vk::PipelineLayoutCreateInfo create_info {
-            .setLayoutCount = shader_module->descriptor_set_count,
-            .pSetLayouts = shader_module->descriptor_set_layouts.data(),
-            .pushConstantRangeCount = static_cast<uint32_t>(shader_module->push_constant_ranges.size()),
-            .pPushConstantRanges = shader_module->push_constant_ranges.data(),
-        };
-        return m_device.createPipelineLayout(create_info);
-    }
-
-    vk::PipelineLayout Renderer::create_pipeline_layout2(
-        const ArrayProxy<ShaderModule2*> shader_modules,
-        const DescriptorSetBlueprint* descriptor_sets
+    vk::PipelineLayout Renderer::create_pipeline_layout(
+        const std::span<const ShaderStageInfo>& shader_modules,
+        const DescriptorSetArray<DescriptorSetBlueprint*>& descriptor_set_blueprints
     ) {
         std::vector<vk::PushConstantRange> push_constant_ranges;
         for (const auto& shader : shader_modules) {
-            auto ranges = shader->reflection.get_push_constant_ranges();
+            auto ranges = shader.module->reflection->get_push_constant_ranges();
             std::copy(ranges.begin(), ranges.end(), std::back_inserter(push_constant_ranges));
         }
 
+        DescriptorSetArray<vk::DescriptorSetLayout> layouts = {
+            descriptor_set_blueprints[0]->layout,
+            descriptor_set_blueprints[1]->layout,
+            descriptor_set_blueprints[2]->layout,
+            descriptor_set_blueprints[3]->layout,
+        };
+
+        // If the graphicsPipelineLibrary feature is not enabled, elements of pSetLayouts must be
+        // valid VkDescriptorSetLayout objects
+        // So loop through layouts until the first NULL layout then use that index as the count
+        uint32_t layout_count = 0;
+        while ((layouts[layout_count] != VK_NULL_HANDLE) && (layout_count < layouts.size())) layout_count++;
+
         const vk::PipelineLayoutCreateInfo create_info {
             // Spec allows VK_NULL_HANDLES in the layout to indicate unused sets
-            .setLayoutCount = static_cast<uint32_t>(descriptor_sets->layouts.size()),
-            .pSetLayouts = descriptor_sets->layouts.data(),
+            .setLayoutCount = layout_count,
+            .pSetLayouts = layouts.data(),
             .pushConstantRangeCount = static_cast<uint32_t>(push_constant_ranges.size()),
             .pPushConstantRanges = push_constant_ranges.data(),
         };
         return m_device.createPipelineLayout(create_info);
     }
 
-    Pipeline* Renderer::create_compute_pipeline(
-        const ShaderModule* shader_module,
-        const std::string_view& entry_point
-    ) {
-        auto pipeline = m_pipeline_allocator.malloc();
+    namespace {
 
-        pipeline->bind_point = vk::PipelineBindPoint::eCompute;
-        pipeline->layout = create_pipeline_layout(shader_module);
-
-        const vk::ComputePipelineCreateInfo create_info {
-            .stage = {
-                .stage = vk::ShaderStageFlagBits::eCompute,
-                .module = shader_module->shader_module,
-                .pName = entry_point.data()
-            },
-            .layout = pipeline->layout
-        };
-
-        auto result = m_device.createComputePipeline(VK_NULL_HANDLE, create_info);
-        if (result.result != vk::Result::eSuccess) {
-            throw std::runtime_error("Failed to create compute pipeline!");
+        vk::PipelineShaderStageCreateInfo make_shader_stage_create_info(const Renderer::ShaderStageInfo& shader) {
+            return vk::PipelineShaderStageCreateInfo {
+                .stage = shader.module->reflection->get_shader_stage(),
+                .module = shader.module->module,
+                .pName = shader.entry_point,
+                .pSpecializationInfo = shader.specialization_info
+            };
         }
 
-        pipeline->pipeline = result.value;
-
-        return pipeline;
     }
 
-    Pipeline* Renderer::create_compute_pipeline2(
-        ShaderModule2* shader,
-        DescriptorSetBlueprint* descriptor_set_blueprint,
-        const char* entry_point,
-        vk::SpecializationInfo* specialization_info
+    Pipeline* Renderer::create_compute_pipeline(
+        const ShaderStageInfo& shader,
+        const DescriptorSetArray<DescriptorSetBlueprint*>& descriptor_set_blueprints
     ) {
-        assert(shader != nullptr);
-        assert(descriptor_set_blueprint != nullptr);
-        assert(entry_point != nullptr);
+        assert(shader.module != nullptr);
+        assert(shader.entry_point != nullptr);
 
         auto pipeline = m_pipeline_allocator.malloc();
         pipeline->bind_point = vk::PipelineBindPoint::eCompute;
 
-        pipeline->layout = create_pipeline_layout2(
-            shader,
-            descriptor_set_blueprint
-        );
+        pipeline->layout = create_pipeline_layout(std::array{shader}, descriptor_set_blueprints);
 
         const vk::ComputePipelineCreateInfo create_info {
-            .stage = vk::PipelineShaderStageCreateInfo{
-                .stage = shader->reflection.get_shader_stage(),
-                .module = shader->module,
-                .pName = entry_point,
-                .pSpecializationInfo = specialization_info
-            },
+            .stage = make_shader_stage_create_info(shader),
             .layout = pipeline->layout,
         };
 
@@ -659,8 +576,7 @@ namespace ember::gpu {
     }
 
     Pipeline* Renderer::create_graphics_pipeline(
-        const ArrayProxy<ShaderModule*>& stages,
-        const ArrayProxy<std::string_view>& entry_points,
+        const std::span<const ShaderStageInfo>& stages,
         const vk::PipelineVertexInputStateCreateInfo& vertex_input_state,
         const vk::PipelineInputAssemblyStateCreateInfo& input_assembly_state,
         const vk::PipelineTessellationStateCreateInfo& tesselation_state,
@@ -670,24 +586,23 @@ namespace ember::gpu {
         const vk::PipelineDepthStencilStateCreateInfo& depth_stencil_state,
         const vk::PipelineColorBlendStateCreateInfo& color_blend_state,
         const vk::PipelineDynamicStateCreateInfo& dynamic_state,
-        const vk::PipelineRenderingCreateInfo& rendering_info
+        const vk::PipelineRenderingCreateInfo& rendering_info,
+        const DescriptorSetArray<DescriptorSetBlueprint*>& descriptor_set_blueprints
     ) {
         auto pipeline = m_pipeline_allocator.malloc();
+        pipeline->bind_point = vk::PipelineBindPoint::eGraphics;
 
-        constexpr auto MAX_SHADER_STAGES = 6;
-        assert(stages.size() <= MAX_SHADER_STAGES);
-        std::array<vk::PipelineShaderStageCreateInfo, 6> shader_stages;
-        for (auto i = 0; i < stages.size(); i++) {
-            shader_stages[i] = vk::PipelineShaderStageCreateInfo{
-                .stage = stages.data()[i]->stage,
-                .module = stages.data()[i]->shader_module,
-                .pName = entry_points.data()[i].data()
-            };
+        pipeline->layout = create_pipeline_layout(stages, descriptor_set_blueprints);
+
+        std::vector<vk::PipelineShaderStageCreateInfo> shader_stages;
+        shader_stages.reserve(stages.size());
+        for (const auto& stage : stages) {
+            shader_stages.push_back(make_shader_stage_create_info(stage));
         }
 
         const vk::GraphicsPipelineCreateInfo create_info {
             .pNext = &rendering_info,
-            .stageCount = stages.size(),
+            .stageCount = static_cast<uint32_t>(shader_stages.size()),
             .pStages = shader_stages.data(),
             .pVertexInputState = &vertex_input_state,
             .pInputAssemblyState = &input_assembly_state,
@@ -696,8 +611,15 @@ namespace ember::gpu {
             .pRasterizationState = &rasterization_state,
             .pDepthStencilState = &depth_stencil_state,
             .pColorBlendState = &color_blend_state,
-            .pDynamicState = &dynamic_state
+            .pDynamicState = &dynamic_state,
+            .layout = pipeline->layout
         };
+
+        auto result = m_device.createGraphicsPipeline(VK_NULL_HANDLE, create_info);
+        if (result.result != vk::Result::eSuccess) {
+            throw std::runtime_error("Failed to create compute pipeline!");
+        }
+        pipeline->pipeline = result.value;
 
         return pipeline;
     }
@@ -712,7 +634,7 @@ namespace ember::gpu {
     // Synchronization                                                                          //
     //////////////////////////////////////////////////////////////////////////////////////////////
 
-    bool Renderer::wait_for_fences(const ArrayProxy<vk::Fence>& fences, std::chrono::nanoseconds timeout) {
+    bool Renderer::wait_for_fences(const std::span<const vk::Fence>& fences, std::chrono::nanoseconds timeout) {
         auto result = m_device.waitForFences(
             fences.size(),
             fences.data(),
@@ -722,7 +644,6 @@ namespace ember::gpu {
 
         for (auto& fence : fences) {
             m_device.destroyFence(fence);
-            //fence = VK_NULL_HANDLE;
         }
 
         // FIXME: Should provide better handling of results in general

@@ -10,8 +10,8 @@ namespace ember::gpu {
 
     class ShaderReflection {
     public:
-        ShaderReflection() = default;
         ShaderReflection(const SPIRVCode& spirv);
+        ShaderReflection(const ShaderReflection&) = delete;
         ~ShaderReflection();
 
         vk::ShaderStageFlagBits get_shader_stage() const;

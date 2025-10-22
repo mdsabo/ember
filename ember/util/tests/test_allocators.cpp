@@ -31,3 +31,9 @@ TEST_CASE("SlabAllocator::free() destroys object and returns it to the pool re-i
     REQUIRE(obj->data == 0xA5);
     REQUIRE(allocator.malloc() == obj);
 }
+
+TEST_CASE("SlabAllocator::allocated_count() returns the number of currently allocated objects", "[Allocators]") {
+    auto allocator = SlabAllocator<TestObject>();
+    for (auto i = 0; i < 50; i++) auto tmp = allocator.malloc();
+    REQUIRE(allocator.allocated_count() == 50);
+}
