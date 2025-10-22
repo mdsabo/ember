@@ -10,7 +10,7 @@
 
 namespace ember::util {
 
-    template<typename T, size_t E = 128>
+    template<typename T, size_t E = 4000/sizeof(T)>
     class SlabAllocator {
     public:
         SlabAllocator() {}

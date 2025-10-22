@@ -192,11 +192,11 @@ namespace ember::gpu {
 
 
 
-        DescriptorSetAllocator* create_descriptor_set_allocator(
+        DescriptorSetBlueprint* create_descriptor_set_blueprint(
             const ArrayProxy<ShaderModule2*>& shader_stages
         );
 
-        void destroy_descriptor_set_allocator(DescriptorSetAllocator* dsa);
+        void destroy_descriptor_set_blueprint(DescriptorSetBlueprint* dsa);
 
         //////////////////////////////////////////////////////////////////////////////////////////////
         // Shaders                                                                                  //
@@ -237,9 +237,9 @@ namespace ember::gpu {
         );
         Pipeline* create_compute_pipeline2(
             ShaderModule2* shader,
+            DescriptorSetBlueprint* descriptor_set_blueprint,
             const char* entry_point = "main",
-            vk::SpecializationInfo* specialization_info = nullptr,
-            DescriptorSetAllocator* descriptor_set_allocator = nullptr
+            vk::SpecializationInfo* specialization_info = nullptr
         );
         Pipeline* create_graphics_pipeline(
             const ArrayProxy<ShaderModule*>& stages,
@@ -296,8 +296,8 @@ namespace ember::gpu {
         util::SlabAllocator<DescriptorSets> m_descriptor_sets_allocator;
 
 
-        util::SlabAllocator<ShaderModule2, 16> m_shader_module2_allocator;
-        util::SlabAllocator<DescriptorSetAllocator> m_descriptor_set_allocator_allocator;
+        util::SlabAllocator<ShaderModule2> m_shader_module2_allocator;
+        util::SlabAllocator<DescriptorSetBlueprint> m_descriptor_set_blueprint_allocator;
 
         vk::DeviceMemory allocate_memory(
             vk::MemoryRequirements requirements,
@@ -310,6 +310,10 @@ namespace ember::gpu {
         );
 
         vk::PipelineLayout create_pipeline_layout(const ShaderModule* shader_module);
+        vk::PipelineLayout create_pipeline_layout2(
+            const ArrayProxy<ShaderModule2*> shader_modules,
+            const DescriptorSetBlueprint* descriptor_sets
+        );
 
         vk::CommandBuffer allocate_command_buffer(
             vk::CommandBufferLevel level = vk::CommandBufferLevel::ePrimary

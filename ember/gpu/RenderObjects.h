@@ -49,7 +49,7 @@ namespace ember::gpu {
     template<typename T>
     using DescriptorBindingArray = DescriptorSetArray<std::array<T, MAX_DESCRIPTOR_BINDINGS_PER_SET>>;
 
-    struct DescriptorSetAllocator {
+    struct DescriptorSetBlueprint {
         DescriptorSetArray<std::vector<vk::DescriptorSetLayoutBinding>> layout_bindings;
         DescriptorSetArray<vk::DescriptorSetLayout> layouts;
         DescriptorSetArray<DescriptorPool> pools;

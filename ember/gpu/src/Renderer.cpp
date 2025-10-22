@@ -390,10 +390,10 @@ namespace ember::gpu {
         }
     }
 
-    DescriptorSetAllocator* Renderer::create_descriptor_set_allocator(
+    DescriptorSetBlueprint* Renderer::create_descriptor_set_blueprint(
         const ArrayProxy<ShaderModule2*>& shader_stages
     ) {
-        auto descriptor_set_allocator = m_descriptor_set_allocator_allocator.malloc();
+        auto descriptor_set_allocator = m_descriptor_set_blueprint_allocator.malloc();
 
         descriptor_set_allocator->layout_bindings = get_descriptor_set_layout_bindings(shader_stages);
 
@@ -438,14 +438,14 @@ namespace ember::gpu {
         return descriptor_set_allocator;
     }
 
-    void Renderer::destroy_descriptor_set_allocator(DescriptorSetAllocator* dsa) {
+    void Renderer::destroy_descriptor_set_blueprint(DescriptorSetBlueprint* dsa) {
         for (auto layout : dsa->layouts) {
             if (layout != VK_NULL_HANDLE) m_device.destroyDescriptorSetLayout(layout);
         }
         for (auto& pool : dsa->pools) {
             if (pool.pool != VK_NULL_HANDLE) m_device.destroyDescriptorPool(pool.pool);
         }
-        m_descriptor_set_allocator_allocator.free(dsa);
+        m_descriptor_set_blueprint_allocator.free(dsa);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -541,7 +541,7 @@ namespace ember::gpu {
         return shader_module;
     }
 
-    ShaderModule2* Renderer::create_shader_module2(const std::filesystem::path& path, bool optimize = false) {
+    ShaderModule2* Renderer::create_shader_module2(const std::filesystem::path& path, bool optimize) {
         auto spirv = compile_glsl_to_spirv(path, optimize);
         const vk::ShaderModuleCreateInfo create_info {
             .codeSize = spirv_code_size(spirv),
@@ -573,6 +573,26 @@ namespace ember::gpu {
         return m_device.createPipelineLayout(create_info);
     }
 
+    vk::PipelineLayout Renderer::create_pipeline_layout2(
+        const ArrayProxy<ShaderModule2*> shader_modules,
+        const DescriptorSetBlueprint* descriptor_sets
+    ) {
+        std::vector<vk::PushConstantRange> push_constant_ranges;
+        for (const auto& shader : shader_modules) {
+            auto ranges = shader->reflection.get_push_constant_ranges();
+            std::copy(ranges.begin(), ranges.end(), std::back_inserter(push_constant_ranges));
+        }
+
+        const vk::PipelineLayoutCreateInfo create_info {
+            // Spec allows VK_NULL_HANDLES in the layout to indicate unused sets
+            .setLayoutCount = static_cast<uint32_t>(descriptor_sets->layouts.size()),
+            .pSetLayouts = descriptor_sets->layouts.data(),
+            .pushConstantRangeCount = static_cast<uint32_t>(push_constant_ranges.size()),
+            .pPushConstantRanges = push_constant_ranges.data(),
+        };
+        return m_device.createPipelineLayout(create_info);
+    }
+
     Pipeline* Renderer::create_compute_pipeline(
         const ShaderModule* shader_module,
         const std::string_view& entry_point
@@ -596,6 +616,43 @@ namespace ember::gpu {
             throw std::runtime_error("Failed to create compute pipeline!");
         }
 
+        pipeline->pipeline = result.value;
+
+        return pipeline;
+    }
+
+    Pipeline* Renderer::create_compute_pipeline2(
+        ShaderModule2* shader,
+        DescriptorSetBlueprint* descriptor_set_blueprint,
+        const char* entry_point,
+        vk::SpecializationInfo* specialization_info
+    ) {
+        assert(shader != nullptr);
+        assert(descriptor_set_blueprint != nullptr);
+        assert(entry_point != nullptr);
+
+        auto pipeline = m_pipeline_allocator.malloc();
+        pipeline->bind_point = vk::PipelineBindPoint::eCompute;
+
+        pipeline->layout = create_pipeline_layout2(
+            shader,
+            descriptor_set_blueprint
+        );
+
+        const vk::ComputePipelineCreateInfo create_info {
+            .stage = vk::PipelineShaderStageCreateInfo{
+                .stage = shader->reflection.get_shader_stage(),
+                .module = shader->module,
+                .pName = entry_point,
+                .pSpecializationInfo = specialization_info
+            },
+            .layout = pipeline->layout,
+        };
+
+        auto result = m_device.createComputePipeline(VK_NULL_HANDLE, create_info);
+        if (result.result != vk::Result::eSuccess) {
+            throw std::runtime_error("Failed to create compute pipeline!");
+        }
         pipeline->pipeline = result.value;
 
         return pipeline;
