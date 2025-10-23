@@ -51,4 +51,12 @@ namespace ember::gpu {
             return vk::DescriptorType(layout_bindings[binding].descriptorType);
         }
     };
+
+    struct Swapchain {
+        vk::SwapchainKHR swapchain;
+        vk::Format format;
+        vk::Extent2D extent;
+        // Semaphore is signaled when corresponding image is ready to present (i.e. rendering complete)
+        std::vector<std::pair<Image*, vk::Semaphore>> images;
+    };
 }

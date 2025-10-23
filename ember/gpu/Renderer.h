@@ -52,16 +52,18 @@ namespace ember::gpu {
 
         /// @brief Record and submit a command buffer
         /// @param fn Recording callback
-        void record_submit_command_buffer(const CommandRecordFn& fn);
+        void record_submit_command_buffer(const CommandRecordFn& fn, vk::Fence fence = VK_NULL_HANDLE);
 
         /// @brief Submit command buffers to the GPU
         /// @param command_buffers Command buffers to submit
         /// @param wait_semaphores Semaphores to wait on before commands are executed
         /// @param signal_sempahores Semaphores to signal when commands complete
         /// @return Fence indicating command buffers have finished
-        [[nodiscard]] vk::Fence submit_command_buffers(
+        vk::Fence submit_command_buffers(
             const std::span<const vk::CommandBuffer>& command_buffers,
+            vk::Fence fence = VK_NULL_HANDLE,
             const std::span<const vk::Semaphore>& wait_semaphores = {},
+            const std::span<const vk::PipelineStageFlags>& dst_stage_mask = {},
             const std::span<const vk::Semaphore>& signal_sempahores = {}
         );
         /// @brief Submit a command buffer to the GPU
@@ -69,9 +71,11 @@ namespace ember::gpu {
         /// @param wait_semaphores Semaphores to wait on before commands are executed
         /// @param signal_sempahores Semaphores to signal when commands complete
         /// @return Fence indicating command buffer has finished
-        [[nodiscard]] vk::Fence submit_command_buffer(
+        vk::Fence submit_command_buffer(
             vk::CommandBuffer command_buffer,
+            vk::Fence fence = VK_NULL_HANDLE,
             const std::span<const vk::Semaphore>& wait_semaphores = {},
+            const std::span<const vk::PipelineStageFlags>& dst_stage_mask = {},
             const std::span<const vk::Semaphore>& signal_sempahores = {}
         );
 
@@ -85,6 +89,15 @@ namespace ember::gpu {
         /// @param properties Memory properties
         /// @return Allocated buffer
         Buffer* create_buffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
+        inline Buffer* create_storage_buffer(vk::DeviceSize size, vk::MemoryPropertyFlags properties) {
+            return create_buffer(size, vk::BufferUsageFlagBits::eStorageBuffer, properties);
+        }
+        inline Buffer* create_vertex_buffer(vk::DeviceSize size, vk::MemoryPropertyFlags properties) {
+            return create_buffer(size, vk::BufferUsageFlagBits::eVertexBuffer, properties);
+        }
+        inline Buffer* create_index_buffer(vk::DeviceSize size, vk::MemoryPropertyFlags properties) {
+            return create_buffer(size, vk::BufferUsageFlagBits::eIndexBuffer, properties);
+        }
 
         /// @brief Destroy a previously allocated buffer
         /// @param buffer
@@ -100,9 +113,14 @@ namespace ember::gpu {
         /// @brief Write data to a buffer
         /// @param buffer Buffer to be written
         /// @param src Source data address
-        /// @param offset Offset within buffer
-        /// @param size Number of bytes to write
-        void write_buffer(Buffer* buffer, const void* src, vk::DeviceSize offset, vk::DeviceSize size);
+        /// @param offset Offset within buffer (default = 0)
+        /// @param size Number of bytes to write (default = buffer->size)
+        void write_buffer(Buffer* buffer, const void* src, vk::DeviceSize offset = 0, vk::DeviceSize size = vk::WholeSize);
+
+        template<typename T>
+        void write_buffer(Buffer* buffer, const std::span<const T>& data, vk::DeviceSize offset = 0) {
+            write_buffer(buffer, data.data(), offset, data.size() * sizeof(T));
+        }
 
         template<class Iter>
         void write_buffer(Buffer* buffer, const Iter begin, const Iter end, vk::DeviceSize offset = 0) {
@@ -211,16 +229,27 @@ namespace ember::gpu {
         // Presentation                                                                             //
         //////////////////////////////////////////////////////////////////////////////////////////////
 
-        vk::SwapchainKHR create_swapchain_for_surface(
+        Swapchain* create_swapchain_for_surface(
             vk::SurfaceKHR surface,
             vk::Extent2D window_extent,
-            vk::SwapchainKHR old_swapchain = VK_NULL_HANDLE
+            Swapchain* old_swapchain = VK_NULL_HANDLE
         );
-        void destroy_swapchain(vk::SwapchainKHR swapchain);
+        void destroy_swapchain(Swapchain* swapchain);
+
+        // FIXME should probably handle any non-success returns internally
+        uint32_t get_next_swapchain_image(
+            const Swapchain* swapchain,
+            vk::Semaphore wait_semaphore
+        );
+
+        void present_swapchain(Swapchain* swapchain, uint32_t image_index);
 
         //////////////////////////////////////////////////////////////////////////////////////////////
         // Synchronization                                                                          //
         //////////////////////////////////////////////////////////////////////////////////////////////
+
+        vk::Fence create_fence(bool signaled = false);
+        void destroy_fence(vk::Fence fence);
 
         /// @brief Wait for a list of fences to complete
         /// @param fences List of fences to wait on
@@ -230,6 +259,8 @@ namespace ember::gpu {
             const std::span<const vk::Fence>& fences,
             std::chrono::nanoseconds timeout = std::chrono::nanoseconds::max()
         );
+
+        void reset_fences(const std::span<const vk::Fence>& fences);
 
         /// @brief Create a sempahore
         /// @return Created sempahore
@@ -254,6 +285,7 @@ namespace ember::gpu {
         ObjectAllocator<Pipeline> m_pipeline_allocator;
         ObjectAllocator<ShaderModule> m_shader_module2_allocator;
         ObjectAllocator<DescriptorSetBlueprint> m_descriptor_set_blueprint_allocator;
+        ObjectAllocator<Swapchain> m_swapchain_allocator;
 
         vk::DeviceMemory allocate_memory(
             vk::MemoryRequirements requirements,

@@ -56,17 +56,22 @@ namespace ember::gpu {
         fn(recorder);
     }
 
-    void Renderer::record_submit_command_buffer(const CommandRecordFn& fn) {
+    void Renderer::record_submit_command_buffer(const CommandRecordFn& fn, vk::Fence fence) {
         auto command_buffer = create_command_buffer();
         record_command_buffer(command_buffer, fn);
-        auto fence = submit_command_buffer(command_buffer);
-        wait_for_fences(std::array{fence});
+
+        auto tmp_fence = submit_command_buffer(command_buffer, fence);
+        wait_for_fences(std::array{tmp_fence});
+
+        if (fence == VK_NULL_HANDLE) destroy_fence(tmp_fence);
         destroy_command_buffer(command_buffer);
     }
 
     vk::Fence Renderer::submit_command_buffers(
         const std::span<const vk::CommandBuffer>& command_buffers,
+        vk::Fence fence,
         const std::span<const vk::Semaphore>& wait_semaphores,
+        const std::span<const vk::PipelineStageFlags>& dst_stage_mask,
         const std::span<const vk::Semaphore>& signal_sempahores
     ) {
         for (auto& cmdbuf : command_buffers) {
@@ -74,26 +79,35 @@ namespace ember::gpu {
         }
 
         const vk::SubmitInfo submit_info {
-            .waitSemaphoreCount = 0,
-            .pWaitSemaphores = nullptr,
-            .pWaitDstStageMask = nullptr,
+            .waitSemaphoreCount = static_cast<uint32_t>(wait_semaphores.size()),
+            .pWaitSemaphores = wait_semaphores.data(),
+            .pWaitDstStageMask = dst_stage_mask.data(),
             .commandBufferCount = static_cast<uint32_t>(command_buffers.size()),
             .pCommandBuffers = command_buffers.data(),
-            .signalSemaphoreCount = 0,
-            .pSignalSemaphores = nullptr
+            .signalSemaphoreCount = static_cast<uint32_t>(signal_sempahores.size()),
+            .pSignalSemaphores = signal_sempahores.data()
         };
 
-        auto fence = m_device.createFence({});
+        if (fence == VK_NULL_HANDLE) fence = create_fence();
+
         m_queue.submit(submit_info, fence);
         return fence;
     }
 
     vk::Fence Renderer::submit_command_buffer(
         vk::CommandBuffer command_buffer,
+        vk::Fence fence,
         const std::span<const vk::Semaphore>& wait_semaphores,
+        const std::span<const vk::PipelineStageFlags>& dst_stage_mask,
         const std::span<const vk::Semaphore>& signal_sempahores
     ) {
-        return submit_command_buffers(std::array{command_buffer}, wait_semaphores, signal_sempahores);
+        return submit_command_buffers(
+            std::array{command_buffer},
+            fence,
+            wait_semaphores,
+            dst_stage_mask,
+            signal_sempahores
+        );
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
@@ -161,8 +175,10 @@ namespace ember::gpu {
     }
 
     void Renderer::write_buffer(Buffer* buffer, const void* src, vk::DeviceSize offset, vk::DeviceSize size) {
-        auto dst = m_device.mapMemory(buffer->memory, offset, size);
-        std::memcpy(dst, src, size);
+        auto memsize = (size == vk::WholeSize) ? (buffer->size) : (size);
+
+        auto dst = m_device.mapMemory(buffer->memory, offset, memsize);
+        std::memcpy(dst, src, memsize);
         m_device.unmapMemory(buffer->memory);
     }
 
@@ -212,7 +228,7 @@ namespace ember::gpu {
 
         auto res = m_image_allocator.malloc();
         res->extent = image_info.extent;
-        res->layout = image_info.layout;
+        res->layout = vk::ImageLayout::eUndefined;
         res->image = image;
         res->view = view;
         res->memory = memory;
@@ -588,6 +604,28 @@ namespace ember::gpu {
             }
         }
 
+        void patch_vertex_binding_indices(
+            std::vector<vk::VertexInputAttributeDescription>& vertex_attributes,
+            const std::span<const vk::VertexInputBindingDescription>& binding_descriptions
+        ) {
+            std::vector<vk::VertexInputBindingDescription> sorted_bindings(binding_descriptions.begin(), binding_descriptions.end());
+            std::sort(
+                sorted_bindings.begin(),
+                sorted_bindings.end(),
+                [](vk::VertexInputBindingDescription a, vk::VertexInputBindingDescription b) {
+                    return a.binding < b.binding;
+                }
+            );
+
+            uint32_t binding_offset = 0;
+            for (const auto binding : sorted_bindings) {
+                for (auto& attr : vertex_attributes) {
+                    if (attr.offset >= binding_offset) attr.binding = binding.binding;
+                }
+                binding_offset += binding.stride;
+            }
+        }
+
         std::vector<vk::Format> get_color_attachment_formats(
             const std::span<const Renderer::ShaderStageInfo>& stages
         ) {
@@ -625,6 +663,8 @@ namespace ember::gpu {
         }
 
         auto vertex_attributes = get_vertex_attributes(stages);
+        patch_vertex_binding_indices(vertex_attributes, pipeline_state.vertex_bindings);
+
         const vk::PipelineVertexInputStateCreateInfo vertex_input_state {
             .vertexBindingDescriptionCount = static_cast<uint32_t>(pipeline_state.vertex_bindings.size()),
             .pVertexBindingDescriptions = pipeline_state.vertex_bindings.data(),
@@ -658,6 +698,7 @@ namespace ember::gpu {
             .pTessellationState = &pipeline_state.tesselation_state,
             .pViewportState = &viewport_state,
             .pRasterizationState = &pipeline_state.rasterization_state,
+            .pMultisampleState = &pipeline_state.multisample_state,
             .pDepthStencilState = nullptr, // FIXME
             .pColorBlendState = &pipeline_state.color_blend_state,
             .pDynamicState = &dynamic_state,
@@ -683,22 +724,109 @@ namespace ember::gpu {
     // Presentation                                                                             //
     //////////////////////////////////////////////////////////////////////////////////////////////
 
-    vk::SwapchainKHR Renderer::create_swapchain_for_surface(
+    Swapchain* Renderer::create_swapchain_for_surface(
         vk::SurfaceKHR surface,
         vk::Extent2D window_extent,
-        vk::SwapchainKHR old_swapchain
+        Swapchain* old_swapchain
     ) {
-        auto create_info = m_gpu->get_swapchain_create_info_for_surface(surface, window_extent, old_swapchain);
-        return m_device.createSwapchainKHR(create_info);
+        auto swapchain = m_swapchain_allocator.malloc();
+
+        vk::SwapchainKHR old_swapchain_khr = VK_NULL_HANDLE;
+        if (old_swapchain != nullptr) old_swapchain_khr = old_swapchain->swapchain;
+        auto create_info = m_gpu->get_swapchain_create_info_for_surface(surface, window_extent, old_swapchain_khr);
+
+        swapchain->format = create_info.imageFormat;
+        swapchain->extent = create_info.imageExtent;
+        swapchain->swapchain = m_device.createSwapchainKHR(create_info);
+
+        auto images = m_device.getSwapchainImagesKHR(swapchain->swapchain);
+        swapchain->images.resize(images.size());
+
+        for (auto i = 0; i < images.size(); i++) {
+            auto& [image, semaphore] = swapchain->images[i];
+
+            image = m_image_allocator.malloc();
+            image->image = images[i];
+            image->extent.width = swapchain->extent.width; // FIXME 2D <-> 3D extent conversion Plz
+            image->extent.height = swapchain->extent.height;
+            image->layout = vk::ImageLayout::eUndefined;
+
+            const vk::ImageViewCreateInfo view_create_info{
+                .image = image->image,
+                .viewType = vk::ImageViewType::e2D,
+                .format = create_info.imageFormat,
+                .components = {
+                    vk::ComponentSwizzle::eR,
+                    vk::ComponentSwizzle::eG,
+                    vk::ComponentSwizzle::eB,
+                    vk::ComponentSwizzle::eA
+                },
+                .subresourceRange = IMAGE_WHOLE_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
+            };
+            image->view = m_device.createImageView(view_create_info);
+
+            record_submit_command_buffer([image](CommandRecorder& recorder) {
+                recorder.transition_image_layout(image, vk::ImageLayout::eColorAttachmentOptimal);
+            });
+
+            semaphore = create_semaphore();
+        }
+
+        if (old_swapchain != nullptr) destroy_swapchain(old_swapchain);
+        return swapchain;
     }
 
-    void Renderer::destroy_swapchain(vk::SwapchainKHR swapchain) {
-        m_device.destroySwapchainKHR(swapchain);
+    void Renderer::destroy_swapchain(Swapchain* swapchain) {
+        for (auto [image, semaphore] : swapchain->images) {
+            m_device.destroyImageView(image->view);
+            destroy_semaphore(semaphore);
+            m_image_allocator.free(image);
+        }
+        m_device.destroySwapchainKHR(swapchain->swapchain);
+    }
+
+    uint32_t Renderer::get_next_swapchain_image(
+        const Swapchain* swapchain,
+        vk::Semaphore wait_semaphore
+    ) {
+        auto res = m_device.acquireNextImageKHR(
+            swapchain->swapchain,
+            std::numeric_limits<uint64_t>::max(),
+            wait_semaphore,
+            VK_NULL_HANDLE
+        );
+
+        assert(res.result == vk::Result::eSuccess);
+        return res.value;
+    }
+
+    void Renderer::present_swapchain(Swapchain* swapchain, uint32_t image_index) {
+        auto& [image, render_semaphore] = swapchain->images.at(image_index);
+        const vk::PresentInfoKHR present_info {
+            //.waitSemaphoreCount = 1,
+            //.pWaitSemaphores = &render_semaphore,
+            .swapchainCount = 1,
+            .pSwapchains = &swapchain->swapchain,
+            .pImageIndices = &image_index
+        };
+        auto res = m_queue.presentKHR(present_info);
+        assert(res == vk::Result::eSuccess);
+        // FIXME: HANDLE THIS !!!
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Synchronization                                                                          //
     //////////////////////////////////////////////////////////////////////////////////////////////
+
+    vk::Fence Renderer::create_fence(bool signaled) {
+        return m_device.createFence(vk::FenceCreateInfo{
+            .flags = (signaled)?(vk::FenceCreateFlagBits::eSignaled):(vk::FenceCreateFlags{})
+        });
+    }
+
+    void Renderer::destroy_fence(vk::Fence fence) {
+        m_device.destroyFence(fence);
+    }
 
     bool Renderer::wait_for_fences(const std::span<const vk::Fence>& fences, std::chrono::nanoseconds timeout) {
         auto result = m_device.waitForFences(
@@ -708,14 +836,13 @@ namespace ember::gpu {
             timeout.count()
         );
 
-        for (auto& fence : fences) {
-            m_device.destroyFence(fence);
-        }
-
         // FIXME: Should provide better handling of results in general
         return (result == vk::Result::eSuccess);
     }
 
+    void Renderer::reset_fences(const std::span<const vk::Fence>& fences) {
+        m_device.resetFences(fences);
+    }
 
     vk::Semaphore Renderer::create_semaphore() {
         return m_device.createSemaphore({});

@@ -29,6 +29,12 @@ namespace ember::gpu {
 
     Window::~Window() {
         if (m_renderer) {
+            for (auto& sync : m_frame_sync_objects) {
+                m_renderer->destroy_fence(sync.wait_fence);
+                m_renderer->destroy_semaphore(sync.present_complete);
+            }
+
+            m_renderer->destroy_swapchain(m_swapchain);
             m_renderer = nullptr; // Clean this up before destroying the window
         }
         SDL_Vulkan_DestroySurface(m_instance, m_surface, nullptr);
@@ -58,7 +64,29 @@ namespace ember::gpu {
         };
         m_swapchain = m_renderer->create_swapchain_for_surface(m_surface, window_extent);
 
+        for (auto& obj : m_frame_sync_objects) {
+            obj.wait_fence = m_renderer->create_fence(true),
+            obj.present_complete = m_renderer->create_semaphore();
+        }
+        m_frame_index = MAX_CONCURRENT_FRAMES - 1; // start at "last" frame so we wrap to 0 on first render
+
         return m_renderer.get();
+    }
+
+    uint32_t Window::begin_rendering_frame() {
+        m_frame_index = (m_frame_index + 1) % MAX_CONCURRENT_FRAMES;
+
+        auto& sync = m_frame_sync_objects.at(m_frame_index);
+
+        const std::array fence{sync.wait_fence};
+        m_renderer->wait_for_fences(fence);
+        m_renderer->reset_fences(fence);
+
+        return m_renderer->get_next_swapchain_image(m_swapchain, sync.present_complete);
+    }
+
+    void Window::present_frame(uint32_t image_index) {
+        m_renderer->present_swapchain(m_swapchain, image_index);
     }
 
 }

@@ -37,14 +37,14 @@ namespace ember::gpu {
 
     void CommandRecorder::transition_image_layout(Image* image, vk::ImageLayout new_layout) {
         const vk::ImageMemoryBarrier image_memory_barrier {
-            .dstAccessMask = vk::AccessFlagBits::eTransferWrite,
+            .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite,
             .oldLayout = image->layout,
             .newLayout = new_layout,
             .srcQueueFamilyIndex = m_queue_family_index,
             .dstQueueFamilyIndex = m_queue_family_index,
             .image = image->image,
             .subresourceRange = IMAGE_WHOLE_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
-            };
+        };
 
         pipeline_barrier(
             vk::PipelineStageFlagBits::eTopOfPipe, // TODO: Could expose these out as a slight optimization?
@@ -85,6 +85,22 @@ namespace ember::gpu {
         m_command_buffer.copyImageToBuffer(image->image, image->layout, buffer->buffer, image_copy);
     }
 
+    void CommandRecorder::bind_vertex_buffer(
+        const Buffer* buffer,
+        uint32_t binding_index,
+        vk::DeviceSize offset
+    ) {
+        m_command_buffer.bindVertexBuffers(binding_index, buffer->buffer, offset);
+    }
+
+    void CommandRecorder::bind_index_buffer(
+        const Buffer* buffer,
+        vk::IndexType index_type,
+        vk::DeviceSize offset
+    ) {
+        m_command_buffer.bindIndexBuffer(buffer->buffer, offset, index_type);
+    }
+
     void CommandRecorder::bind_pipeline(const Pipeline* pipeline) {
         m_command_buffer.bindPipeline(pipeline->bind_point, pipeline->pipeline);
     }
@@ -105,6 +121,50 @@ namespace ember::gpu {
 
     void CommandRecorder::dispatch_compute(uint32_t x, uint32_t y, uint32_t z) {
         m_command_buffer.dispatch(x, y, z);
+    }
+
+    void CommandRecorder::begin_rendering(
+        Image* image,
+        const std::span<const vk::RenderingAttachmentInfo>& color_attachments,
+        const vk::RenderingAttachmentInfo* depth_attachment,
+        const vk::RenderingAttachmentInfo* stencil_attachment
+    ) {
+        const vk::RenderingInfo rendering_info {
+            .renderArea = { 0, 0, image->extent.width, image->extent.height },
+            .layerCount = 1,
+            .colorAttachmentCount = static_cast<uint32_t>(color_attachments.size()),
+            .pColorAttachments = color_attachments.data(),
+            .pDepthAttachment = depth_attachment,
+            .pStencilAttachment = stencil_attachment
+        };
+        m_command_buffer.beginRendering(rendering_info);
+    }
+
+    void CommandRecorder::end_rendering() {
+        m_command_buffer.endRendering();
+    }
+
+    void CommandRecorder::set_viewport(const vk::Viewport& viewport) {
+        m_command_buffer.setViewport(0, viewport);
+    }
+    void CommandRecorder::set_scissor(const vk::Rect2D& scissor) {
+        m_command_buffer.setScissor(0, scissor);
+    }
+
+    void CommandRecorder::draw_indexed(
+        uint32_t index_count,
+        uint32_t instance_count,
+        uint32_t first_index,
+        int32_t vertex_offset,
+        uint32_t first_instance
+    ) {
+        m_command_buffer.drawIndexed(
+            index_count,
+            instance_count,
+            first_index,
+            vertex_offset,
+            first_instance
+        );
     }
 
 }

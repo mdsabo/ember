@@ -1,5 +1,7 @@
 #include "ShaderReflection.h"
 
+#include "ember/util/Log.h"
+
 namespace ember::gpu {
 
     ShaderReflection::ShaderReflection(const SPIRVCode& spirv): m_module(spirv) { }
@@ -83,10 +85,10 @@ namespace ember::gpu {
         std::vector<vk::VertexInputAttributeDescription> input_attributes(input_variables.size());
         for (auto i = 0; i < input_variables.size(); i++) {
             // FIXME: Really not sure how these indexes map to each other
-            input_attributes[i].binding = input_variables[i]->location;
-            input_attributes[i].location = input_variables[i]->component;
+            input_attributes[i].location = input_variables[i]->location;
             input_attributes[i].format = static_cast<vk::Format>(input_variables[i]->format);
             input_attributes[i].offset = offset;
+
             offset += vertex_stride(input_variables[i]->format);
         }
         return input_attributes;

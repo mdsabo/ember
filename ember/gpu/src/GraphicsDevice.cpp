@@ -34,6 +34,9 @@ namespace ember::gpu {
             return true;
         }
 
+        constexpr vk::PhysicalDeviceVulkan13Features REQUIRED_DEVICE_VULKAN13_FEATURES = {
+            .dynamicRendering = vk::True,
+        };
         constexpr vk::PhysicalDeviceFeatures REQUIRED_DEVICE_FEATURES = {};
         bool device_supports_required_features(const vk::PhysicalDevice& device) {
             return true;
@@ -224,6 +227,7 @@ namespace ember::gpu {
             }
 
         const vk::DeviceCreateInfo device_create_info{
+            .pNext = &REQUIRED_DEVICE_VULKAN13_FEATURES,
             .queueCreateInfoCount = 1,
             .pQueueCreateInfos = &queue_create_info,
             .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
