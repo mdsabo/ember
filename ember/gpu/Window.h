@@ -26,11 +26,11 @@ namespace ember::gpu {
         Id id() const;
         std::pair<int, int> size() const;
         inline vk::SurfaceKHR surface() const { return m_surface; }
-        inline vk::Format swapchain_format() const {
+        inline vk::Format get_swapchain_format() const {
             if (m_swapchain) return m_swapchain->format;
             else return vk::Format::eUndefined;
         }
-        inline vk::Extent2D swapchain_extent() const {
+        inline vk::Extent2D get_swapchain_extent() const {
             if (m_swapchain) return m_swapchain->extent;
             else return {};
         }
@@ -38,20 +38,8 @@ namespace ember::gpu {
         Renderer* create_renderer(std::shared_ptr<const GraphicsDevice> graphics_device);
         Renderer* get_renderer() { return m_renderer.get(); }
 
-        uint32_t begin_rendering_frame();
-        inline Image* get_swapchain_image(uint32_t image_index) {
-            return m_swapchain->images.at(image_index).first;
-        }
-        inline vk::Semaphore get_swapchain_render_complete_semaphore(uint32_t image_index) {
-            return m_swapchain->images.at(image_index).second;
-        }
-        inline vk::Fence frame_fence() {
-            return m_frame_sync_objects[m_frame_index].wait_fence;
-        }
-        inline vk::Semaphore present_complete_semaphore() {
-            return m_frame_sync_objects[m_frame_index].present_complete;
-        }
-        void present_frame(uint32_t image_index);
+        vk::CommandBuffer& begin_rendering_frame();
+        void present_frame();
 
     private:
         static constexpr auto MAX_CONCURRENT_FRAMES = 3;
@@ -62,12 +50,14 @@ namespace ember::gpu {
 
         std::unique_ptr<Renderer> m_renderer;
         Swapchain* m_swapchain;
-        struct FrameSyncObjects {
+        struct PerFrameObjects {
+            vk::CommandBuffer command_buffer;
             vk::Fence wait_fence;
-            vk::Semaphore present_complete;
+            vk::Semaphore present_complete_semaphore;
         };
-        std::array<FrameSyncObjects, MAX_CONCURRENT_FRAMES> m_frame_sync_objects;
+        std::array<PerFrameObjects, MAX_CONCURRENT_FRAMES> m_per_frame_objects;
         size_t m_frame_index;
+        uint32_t m_next_swapchain_image;
     };
 
 }

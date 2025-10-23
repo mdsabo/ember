@@ -35,6 +35,7 @@ namespace ember::gpu {
         }
     }
 
+    // FIXME: This needs fixing
     void CommandRecorder::transition_image_layout(Image* image, vk::ImageLayout new_layout) {
         const vk::ImageMemoryBarrier image_memory_barrier {
             .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite,
@@ -47,7 +48,7 @@ namespace ember::gpu {
         };
 
         pipeline_barrier(
-            vk::PipelineStageFlagBits::eTopOfPipe, // TODO: Could expose these out as a slight optimization?
+            vk::PipelineStageFlagBits::eTopOfPipe,
             vk::PipelineStageFlagBits::eTransfer,
             {},
             {},

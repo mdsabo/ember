@@ -51,6 +51,14 @@ namespace ember::gpu {
         command_buffer = VK_NULL_HANDLE;
     }
 
+    void Renderer::restart_command_buffer(
+        vk::CommandBuffer command_buffer,
+        vk::CommandBufferUsageFlags usage
+    ) {
+        command_buffer.reset();
+        command_buffer.begin({ .flags = usage });
+    }
+
     void Renderer::record_command_buffer(vk::CommandBuffer command_buffer, const CommandRecordFn& fn) {
         auto recorder = CommandRecorder(command_buffer, m_gpu->queue_family_index());
         fn(recorder);

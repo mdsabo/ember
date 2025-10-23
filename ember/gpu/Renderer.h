@@ -48,6 +48,11 @@ namespace ember::gpu {
         /// @param command_buffer
         void destroy_command_buffer(vk::CommandBuffer command_buffer);
 
+        void restart_command_buffer(
+            vk::CommandBuffer command_buffer,
+            vk::CommandBufferUsageFlags usage = vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+        );
+
         void record_command_buffer(vk::CommandBuffer command_buffer, const CommandRecordFn& fn);
 
         /// @brief Record and submit a command buffer

@@ -238,6 +238,7 @@ namespace ember::gpu {
         auto device = m_physical_device.createDevice(device_create_info);
         auto queue = device.getQueue(m_queue_family_index, 0);
         auto command_pool = device.createCommandPool(vk::CommandPoolCreateInfo {
+            .flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
             .queueFamilyIndex = m_queue_family_index
         });
         return std::make_tuple(device, queue, command_pool);
