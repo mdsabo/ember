@@ -4,7 +4,7 @@ add_library(ember-graphics
 )
 add_compile_definitions(
     VULKAN_HPP_NO_CONSTRUCTORS
-    EMBER_GRAPHICS_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    EMBER_GRAPHICS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/"
     EMBER_GRAPHICS_LOG="ember.graphics"
 )
 target_include_directories(ember-graphics
@@ -21,4 +21,5 @@ if(EMBER_TESTS)
     # add_test(NAME ember-graphics.tests.unit COMMAND $<TARGET_FILE:ember-graphics.tests.unit>)
 endif()
 
+add_subdirectory(examples/mesh_renderer)
 add_subdirectory(examples/sdl_window)

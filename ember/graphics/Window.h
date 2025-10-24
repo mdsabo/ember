@@ -14,6 +14,7 @@ namespace ember::graphics {
     public:
         using Id = SDL_WindowID;
 
+        Window() = default;
         Window(
             std::shared_ptr<const gpu::VulkanInstance> instance,
             const char* title,
@@ -21,7 +22,10 @@ namespace ember::graphics {
             int h,
             SDL_WindowFlags flags = SDL_WINDOW_HIDDEN
         );
+        Window(Window&&) = default;
         ~Window();
+
+        Window& operator=(Window&& rhs);
 
         Id id() const;
         std::pair<int, int> size() const;

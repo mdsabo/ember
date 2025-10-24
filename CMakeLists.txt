@@ -15,6 +15,7 @@ if(EMBER_EXAMPLES)
 # add_subdirectory(examples)
 endif()
 
+add_subdirectory(third_party/assimp EXCLUDE_FROM_ALL)
 add_subdirectory(third_party/Catch2 EXCLUDE_FROM_ALL)
 add_subdirectory(third_party/eigen EXCLUDE_FROM_ALL)
 

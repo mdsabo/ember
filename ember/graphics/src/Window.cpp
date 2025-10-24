@@ -43,8 +43,33 @@ namespace ember::graphics {
 
     Window::~Window() {
         if (m_renderer) destroy_render_objects();
-        m_instance->destroy_window_surface(m_surface);
-        SDL_DestroyWindow(m_window);
+        if (m_window) {
+            m_instance->destroy_window_surface(m_surface);
+            SDL_DestroyWindow(m_window);
+        }
+    }
+
+    Window& Window::operator=(Window&& rhs) {
+        m_instance = rhs.m_instance;
+
+        m_window = rhs.m_window;
+        m_surface = rhs.m_surface;
+        m_renderer = std::move(rhs.m_renderer);
+        m_swapchain = rhs.m_swapchain;
+        m_per_frame_objects = rhs.m_per_frame_objects;
+        m_frame_index = rhs.m_frame_index;
+        m_next_swapchain_image = rhs.m_next_swapchain_image;
+
+        rhs.m_window = nullptr;
+        rhs.m_surface = VK_NULL_HANDLE;
+        rhs.m_swapchain = nullptr;
+        for (auto& fobj : rhs.m_per_frame_objects) {
+            fobj.command_buffer = VK_NULL_HANDLE;
+            fobj.wait_fence = VK_NULL_HANDLE;
+            fobj.present_complete_semaphore = VK_NULL_HANDLE;
+        }
+
+        return *this;
     }
 
     Window::Id Window::id() const {

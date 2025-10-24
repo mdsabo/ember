@@ -32,7 +32,7 @@ namespace ember::gpu {
         );
         void bind_index_buffer(
             const Buffer* buffer,
-            vk::IndexType index_type,
+            vk::IndexType index_type = vk::IndexType::eUint32,
             vk::DeviceSize offset = 0
         );
 
