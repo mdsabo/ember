@@ -11,4 +11,14 @@ namespace ember::gpu {
         return vk::ClearValue{.color = { .int32 = {{ r, g, b, a}} }};
     }
 
+    constexpr vk::ImageSubresourceRange MAX_SUBRESOURCE_RANGE(vk::ImageAspectFlags aspect_mask) {
+        return vk::ImageSubresourceRange {
+            .aspectMask = aspect_mask,
+            .baseMipLevel = 0,
+            .levelCount = vk::RemainingMipLevels,
+            .baseArrayLayer = 0,
+            .layerCount = vk::RemainingArrayLayers
+        };
+    }
+
 }

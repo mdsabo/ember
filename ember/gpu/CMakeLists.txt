@@ -12,7 +12,6 @@ add_library(ember-gpu
     src/Renderer.cpp
     src/ShaderReflection.cpp
     src/SPIRV.cpp
-    src/Window.cpp
     src/VulkanInstance.cpp
 )
 target_include_directories(ember-gpu
@@ -72,23 +71,6 @@ if(EMBER_EXAMPLES)
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 $<TARGET_RUNTIME_DLLS:ember-gpu.examples.compute-raytracer>
                 $<TARGET_FILE_DIR:ember-gpu.examples.compute-raytracer>
-        )
-    endif()
-
-    add_executable(ember-gpu.examples.sdl-window examples/sdl_window.cpp)
-    target_include_directories(ember-gpu.examples.sdl-window
-        PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}
-    )
-    target_link_libraries(ember-gpu.examples.sdl-window PRIVATE ember-gpu SDL3::SDL3)
-    if(WIN32)
-        add_custom_command(
-            TARGET ember-gpu.examples.sdl-window
-            POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                $<TARGET_RUNTIME_DLLS:ember-gpu.examples.sdl-window>
-                $<TARGET_FILE_DIR:ember-gpu.examples.sdl-window>
         )
     endif()
 endif()

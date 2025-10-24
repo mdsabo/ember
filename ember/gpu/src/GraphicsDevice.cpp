@@ -35,6 +35,7 @@ namespace ember::gpu {
         }
 
         constexpr vk::PhysicalDeviceVulkan13Features REQUIRED_DEVICE_VULKAN13_FEATURES = {
+            .synchronization2 = vk::True,
             .dynamicRendering = vk::True,
         };
         constexpr vk::PhysicalDeviceFeatures REQUIRED_DEVICE_FEATURES = {};

@@ -6,55 +6,27 @@ namespace ember::gpu {
         m_command_buffer(command_buffer), m_queue_family_index(queue_family_index)
     { }
 
-    void CommandRecorder::pipeline_barrier(
-        vk::PipelineStageFlags src_stage_mask,
-        vk::PipelineStageFlags dst_stage_mask,
-        const ArrayProxy<vk::MemoryBarrier>& memory_barriers,
-        const ArrayProxy<vk::BufferMemoryBarrier> buffer_memory_barriers,
-        const ArrayProxy<vk::ImageMemoryBarrier> image_memory_barriers
-    ) {
-        m_command_buffer.pipelineBarrier(
-            src_stage_mask,
-            dst_stage_mask,
-            {},
-            memory_barriers,
-            buffer_memory_barriers,
-            image_memory_barriers
-        );
-    }
-
-    namespace {
-        constexpr vk::ImageSubresourceRange IMAGE_WHOLE_SUBRESOURCE_RANGE(vk::ImageAspectFlags aspect_mask) {
-            return vk::ImageSubresourceRange {
-                .aspectMask = aspect_mask,
-                .baseMipLevel = 0,
-                .levelCount = vk::RemainingMipLevels,
-                .baseArrayLayer = 0,
-                .layerCount = vk::RemainingArrayLayers
-            };
-        }
-    }
-
-    // FIXME: This needs fixing
-    void CommandRecorder::transition_image_layout(Image* image, vk::ImageLayout new_layout) {
+    void CommandRecorder::transition_image_layout(Image* image, const ImageTransitionInfo& info) {
         const vk::ImageMemoryBarrier image_memory_barrier {
-            .dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite,
+            .srcAccessMask = info.src_access_mask,
+            .dstAccessMask = info.dst_access_mask,
             .oldLayout = image->layout,
-            .newLayout = new_layout,
+            .newLayout = info.new_layout,
             .srcQueueFamilyIndex = m_queue_family_index,
             .dstQueueFamilyIndex = m_queue_family_index,
             .image = image->image,
-            .subresourceRange = IMAGE_WHOLE_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
+            .subresourceRange = info.subresource_range
         };
 
-        pipeline_barrier(
-            vk::PipelineStageFlagBits::eTopOfPipe,
-            vk::PipelineStageFlagBits::eTransfer,
+        m_command_buffer.pipelineBarrier(
+            info.src_pipeline_stage,
+            info.dst_pipeline_stage,
+            {},
             {},
             {},
             image_memory_barrier
         );
-        image->layout = new_layout;
+        image->layout = info.new_layout;
     }
 
     void CommandRecorder::fill_buffer(Buffer* dst, uint32_t value, vk::DeviceSize offset, vk::DeviceSize size) {
@@ -150,6 +122,20 @@ namespace ember::gpu {
     }
     void CommandRecorder::set_scissor(const vk::Rect2D& scissor) {
         m_command_buffer.setScissor(0, scissor);
+    }
+
+    void CommandRecorder::draw(
+        uint32_t vertex_count,
+        uint32_t instance_count,
+        uint32_t first_vertex,
+        uint32_t first_instance
+    ) {
+        m_command_buffer.draw(
+            vertex_count,
+            instance_count,
+            first_vertex,
+            first_instance
+        );
     }
 
     void CommandRecorder::draw_indexed(

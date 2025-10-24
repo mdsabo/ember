@@ -173,4 +173,17 @@ namespace ember::gpu {
         SDL_Vulkan_UnloadLibrary();
     }
 
+    vk::SurfaceKHR VulkanInstance::create_window_surface(SDL_Window* window) const {
+        VkSurfaceKHR surface;
+        if (!SDL_Vulkan_CreateSurface(window, m_instance, nullptr, &surface)) {
+            error(EMBER_GPU_LOG, "Failed to create surface : {}", SDL_GetError());
+            throw std::runtime_error("Failed to create surface!");
+        }
+        return surface;
+    }
+
+    void VulkanInstance::destroy_window_surface(vk::SurfaceKHR surface) const {
+        SDL_Vulkan_DestroySurface(m_instance, surface, nullptr);
+    }
+
 }

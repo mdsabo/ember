@@ -4,6 +4,7 @@
 #include "SPIRV.h"
 #include "ShaderReflection.h"
 #include "Util.h"
+#include "VulkanHelpers.h"
 
 namespace ember::gpu {
 
@@ -190,18 +191,6 @@ namespace ember::gpu {
         m_device.unmapMemory(buffer->memory);
     }
 
-    namespace {
-        constexpr vk::ImageSubresourceRange IMAGE_WHOLE_SUBRESOURCE_RANGE(vk::ImageAspectFlags aspect_mask) {
-            return vk::ImageSubresourceRange {
-                .aspectMask = aspect_mask,
-                .baseMipLevel = 0,
-                .levelCount = vk::RemainingMipLevels,
-                .baseArrayLayer = 0,
-                .layerCount = vk::RemainingArrayLayers
-            };
-        }
-    }
-
     Image* Renderer::create_image(const ImageCreateInfo& image_info) {
         const vk::ImageCreateInfo image_create_info {
             .imageType = image_info.type,
@@ -220,6 +209,7 @@ namespace ember::gpu {
         auto memory = allocate_memory(memory_requirements, image_info.memory_properties);
         m_device.bindImageMemory(image, memory, 0);
 
+        const auto view_range = MAX_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor);
         const vk::ImageViewCreateInfo view_create_info {
             .image = image,
             .viewType = vk::ImageViewType::e2D, // FIXME
@@ -230,7 +220,7 @@ namespace ember::gpu {
                 .b = vk::ComponentSwizzle::eB,
                 .a = vk::ComponentSwizzle::eA,
             },
-            .subresourceRange = IMAGE_WHOLE_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor),
+            .subresourceRange = view_range,
         };
         auto view = m_device.createImageView(view_create_info);
 
@@ -241,8 +231,14 @@ namespace ember::gpu {
         res->view = view;
         res->memory = memory;
 
-        record_submit_command_buffer([&res, &image_info](CommandRecorder& recorder) {
-            recorder.transition_image_layout(res, image_info.layout);
+        record_submit_command_buffer([&res, &image_info, &view_range](CommandRecorder& recorder) {
+            const CommandRecorder::ImageTransitionInfo info {
+                .new_layout = vk::ImageLayout::eGeneral,
+                .dst_pipeline_stage = vk::PipelineStageFlagBits::eTransfer,
+                .dst_access_mask = vk::AccessFlagBits::eTransferRead,
+                .subresource_range = view_range
+            };
+            recorder.transition_image_layout(res, info);
         });
 
         return res;
@@ -769,13 +765,9 @@ namespace ember::gpu {
                     vk::ComponentSwizzle::eB,
                     vk::ComponentSwizzle::eA
                 },
-                .subresourceRange = IMAGE_WHOLE_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
+                .subresourceRange = MAX_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
             };
             image->view = m_device.createImageView(view_create_info);
-
-            record_submit_command_buffer([image](CommandRecorder& recorder) {
-                recorder.transition_image_layout(image, vk::ImageLayout::eColorAttachmentOptimal);
-            });
 
             semaphore = create_semaphore();
         }
@@ -811,8 +803,8 @@ namespace ember::gpu {
     void Renderer::present_swapchain(Swapchain* swapchain, uint32_t image_index) {
         auto& [image, render_semaphore] = swapchain->images.at(image_index);
         const vk::PresentInfoKHR present_info {
-            //.waitSemaphoreCount = 1,
-            //.pWaitSemaphores = &render_semaphore,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &render_semaphore,
             .swapchainCount = 1,
             .pSwapchains = &swapchain->swapchain,
             .pImageIndices = &image_index
@@ -825,6 +817,10 @@ namespace ember::gpu {
     //////////////////////////////////////////////////////////////////////////////////////////////
     // Synchronization                                                                          //
     //////////////////////////////////////////////////////////////////////////////////////////////
+
+    void Renderer::wait_idle() {
+        m_queue.waitIdle(); // or m_device.waitIdle(), not sure it matters when using one queue
+    }
 
     vk::Fence Renderer::create_fence(bool signaled) {
         return m_device.createFence(vk::FenceCreateInfo{

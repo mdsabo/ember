@@ -10,12 +10,12 @@
 #include <string_view>
 
 #include "ember/gpu/Renderer.h"
-#include "ember/gpu/Window.h"
 #include "ember/gpu/VulkanHelpers.h"
 #include "ember/util/Log.h"
 #include "Window.h"
 
 using namespace ember::gpu;
+using namespace ember::graphics;
 
 struct Vertex {
     float pos[3];
@@ -28,17 +28,17 @@ void run() {
     auto vkinstance = VulkanInstance::create({
         .features {
             .vk_layer_validation = true,
-            //.vk_layer_api_dump = true
+            // .vk_layer_api_dump = true
         }
     });
     auto window = Window(vkinstance, "SDL Playground", 800, 600);
     auto graphics_device = GraphicsDevice::create(vkinstance, window.surface());
     auto renderer = window.create_renderer(graphics_device);
 
-    auto vertex_shader_path = std::filesystem::path(EMBER_GPU_DIR)
-        .append("examples/sdl_window.vert");
-    auto fragment_shader_path = std::filesystem::path(EMBER_GPU_DIR)
-        .append("examples/sdl_window.frag");
+    auto vertex_shader_path = std::filesystem::path(EMBER_GRAPHICS_DIR)
+        .append("examples/sdl_window/sdl_window.vert");
+    auto fragment_shader_path = std::filesystem::path(EMBER_GRAPHICS_DIR)
+        .append("examples/sdl_window/sdl_window.frag");
 
     std::array shaders = {
         renderer->create_shader_module(vertex_shader_path),
@@ -54,7 +54,7 @@ void run() {
     const std::array vertex_bindings{
         vk::VertexInputBindingDescription {
             .binding = 0,
-            .stride = 2 * 3 * sizeof(float),
+            .stride = sizeof(Vertex),
             .inputRate = vk::VertexInputRate::eVertex
         }
     };
@@ -122,6 +122,7 @@ void run() {
     );
     renderer->write_buffer<uint16_t>(index_buffer, INDICES);
 
+    window.set_visible(true);
 
     SDL_Event e;
     SDL_zero(e);
@@ -131,9 +132,7 @@ void run() {
             if (e.type == SDL_EVENT_QUIT) quit = true;
         }
 
-        // should the image index be kept internal? probably right?
         auto command_buffer = window.begin_rendering_frame();
-        auto swapchain_extent = window.get_swapchain_extent();
 
         renderer->record_command_buffer(command_buffer, [&](CommandRecorder& recorder) {
             recorder.bind_pipeline(pipeline);
@@ -145,6 +144,7 @@ void run() {
         window.present_frame();
     }
 
+    renderer->wait_idle();
     renderer->destroy_buffer(vertex_buffer);
     renderer->destroy_buffer(index_buffer);
     renderer->destroy_pipeline(pipeline);

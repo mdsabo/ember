@@ -2,6 +2,7 @@ add_subdirectory(collections)
 add_subdirectory(ecs)
 add_subdirectory(geometry)
 add_subdirectory(gpu)
+add_subdirectory(graphics)
 add_subdirectory(util)
 
 add_library(ember INTERFACE)

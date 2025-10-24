@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "Renderer.h"
+#include "VulkanHelpers.h"
 #include "ember/util/ArgParser.h"
 #include "ember/util/Log.h"
 
@@ -92,7 +93,16 @@ int main(int argc, const char* argv[]) {
         recorder.bind_pipeline(pipeline);
         recorder.bind_descriptor_sets(pipeline, 0, descriptor_sets);
         recorder.dispatch_compute(IMAGE_DIM_X/32, IMAGE_DIM_Y/32, 1);
-        recorder.transition_image_layout(output_image, vk::ImageLayout::eTransferSrcOptimal);
+
+        const CommandRecorder::ImageTransitionInfo info {
+            .new_layout = vk::ImageLayout::eTransferSrcOptimal,
+            .src_pipeline_stage = vk::PipelineStageFlagBits::eComputeShader,
+            .dst_pipeline_stage = vk::PipelineStageFlagBits::eTransfer,
+            .src_access_mask = vk::AccessFlagBits::eShaderWrite,
+            .dst_access_mask = vk::AccessFlagBits::eTransferRead,
+            .subresource_range = MAX_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
+        };
+        recorder.transition_image_layout(output_image, info);
         recorder.copy_image_to_buffer(output_staging_buffer, output_image);
     });
 

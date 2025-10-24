@@ -253,6 +253,8 @@ namespace ember::gpu {
         // Synchronization                                                                          //
         //////////////////////////////////////////////////////////////////////////////////////////////
 
+        void wait_idle();
+
         vk::Fence create_fence(bool signaled = false);
         void destroy_fence(vk::Fence fence);
 

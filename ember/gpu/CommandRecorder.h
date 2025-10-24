@@ -11,14 +11,15 @@ namespace ember::gpu {
     public:
         CommandRecorder(vk::CommandBuffer command_buffer, uint32_t queue_family_index);
 
-        void pipeline_barrier(
-            vk::PipelineStageFlags src_stage_mask,
-            vk::PipelineStageFlags dst_stage_mask,
-            const ArrayProxy<vk::MemoryBarrier>& memory_barriers,
-            const ArrayProxy<vk::BufferMemoryBarrier> buffer_memory_barriers,
-            const ArrayProxy<vk::ImageMemoryBarrier> image_memory_barriers
-        );
-        void transition_image_layout(Image* image, vk::ImageLayout new_layout);
+        struct ImageTransitionInfo {
+            vk::ImageLayout new_layout;
+            vk::PipelineStageFlags src_pipeline_stage;
+            vk::PipelineStageFlags dst_pipeline_stage;
+            vk::AccessFlags src_access_mask;
+            vk::AccessFlags dst_access_mask;
+            vk::ImageSubresourceRange subresource_range;
+        };
+        void transition_image_layout(Image* image, const ImageTransitionInfo& info);
 
         void fill_buffer(Buffer* dst, uint32_t value, vk::DeviceSize offset, vk::DeviceSize size);
         void copy_buffer(Buffer* dst, const Buffer* src, const std::vector<vk::BufferCopy>& copies = {});
@@ -56,6 +57,12 @@ namespace ember::gpu {
         void set_viewport(const vk::Viewport& viewport);
         void set_scissor(const vk::Rect2D& scissor);
 
+        void draw(
+            uint32_t vertex_count,
+            uint32_t instance_count,
+            uint32_t first_vertex = 0,
+            uint32_t first_instance = 0
+        );
         void draw_indexed(
             uint32_t index_count,
             uint32_t instance_count,
