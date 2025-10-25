@@ -5,13 +5,12 @@
 #include <Eigen/Dense>
 #include <SDL3/SDL.h>
 
-#include "ember/graphics/ArcballCamera.h"
+#include "ember/ecs/Entity.h"
+#include "ember/ecs/World.h"
+#include "ember/graphics/MeshRenderSystem.h"
 #include "ember/graphics/Window.h"
-#include "ember/gpu/Renderer.h"
-#include "ember/gpu/VulkanHelpers.h"
 
-using namespace ember::gpu;
-using namespace ember::graphics;
+using namespace ember;
 
 class MeshViewer {
 public:
@@ -21,29 +20,17 @@ public:
     void run();
 
 private:
-    std::shared_ptr<const VulkanInstance> m_vkinstance;
-    std::shared_ptr<const GraphicsDevice> m_graphics_device;
-    std::unique_ptr<Window> m_window;
-    Renderer* m_renderer;
+    std::shared_ptr<const gpu::VulkanInstance> m_vkinstance;
+    std::shared_ptr<const gpu::GraphicsDevice> m_graphics_device;
+    std::unique_ptr<graphics::Window> m_window;
+    ecs::World m_world;
+    graphics::MeshRenderSystem m_mesh_renderer;
 
-    std::array<ShaderModule*, 2> m_shaders;
-    DescriptorSetArray<DescriptorSetBlueprint*> m_descriptor_set_blueprints;
-    Pipeline* m_pipeline;
-    Buffer* m_vertex_buffer, *m_index_buffer, *m_uniform_buffer;
-    vk::DescriptorSet m_ubo;
-    uint32_t m_index_count;
-
-    Assimp::Importer m_assimp;
-    const aiScene* m_scene;
-    ArcballCamera m_camera;
-    struct ModelViewProjection {
-        Eigen::Affine3f model;
-        Eigen::Affine3f view;
-        Eigen::Matrix4f proj;
-    } m_model_mvp;
+    ecs::Entity m_scene;
+    ecs::Entity m_camera;
+    std::vector<ecs::Entity> m_meshes;
 
     void create_window();
-    void create_graphics_pipeline();
-    void upload_model_data(const char* model_path);
-    void update_model_mvp();
+    void load_scene(const char* scene_path);
+    void create_camera();
 };

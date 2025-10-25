@@ -43,6 +43,9 @@ namespace ember::graphics {
         gpu::Renderer* get_renderer() { return m_renderer.get(); }
 
         vk::CommandBuffer& begin_rendering_frame();
+        inline vk::CommandBuffer& get_active_command_buffer() {
+            return m_per_frame_objects[m_frame_index].command_buffer;
+        }
         void present_frame();
 
     private:

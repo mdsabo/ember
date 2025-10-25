@@ -94,14 +94,29 @@ namespace ember::gpu {
         /// @param properties Memory properties
         /// @return Allocated buffer
         Buffer* create_buffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
+        inline Buffer* create_device_buffer(vk::DeviceSize size, vk::BufferUsageFlags usage) {
+            return create_buffer(size, usage, vk::MemoryPropertyFlagBits::eDeviceLocal);
+        }
         inline Buffer* create_storage_buffer(vk::DeviceSize size, vk::MemoryPropertyFlags properties) {
             return create_buffer(size, vk::BufferUsageFlagBits::eStorageBuffer, properties);
         }
-        inline Buffer* create_vertex_buffer(vk::DeviceSize size, vk::MemoryPropertyFlags properties) {
-            return create_buffer(size, vk::BufferUsageFlagBits::eVertexBuffer, properties);
+        inline Buffer* create_vertex_buffer(vk::DeviceSize size) {
+            return create_device_buffer(
+                size,
+                vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst
+            );
         }
-        inline Buffer* create_index_buffer(vk::DeviceSize size, vk::MemoryPropertyFlags properties) {
-            return create_buffer(size, vk::BufferUsageFlagBits::eIndexBuffer, properties);
+        inline Buffer* create_index_buffer(vk::DeviceSize size) {
+            return create_device_buffer(
+                size,
+                vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst
+            );
+        }
+        inline Buffer* create_uniform_buffer(vk::DeviceSize size) {
+            return create_device_buffer(
+                size,
+                vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst
+            );
         }
 
         /// @brief Destroy a previously allocated buffer
@@ -113,7 +128,8 @@ namespace ember::gpu {
         /// @param buffer Buffer to read
         /// @param offset Offset within buffer
         /// @param size Number of bytes to read
-        void read_buffer(void* dst, const Buffer* buffer, vk::DeviceSize offset, vk::DeviceSize size) const;
+        void read_buffer(void* dst, const Buffer* buffer, vk::DeviceSize offset, vk::DeviceSize size = vk::WholeSize) const;
+        void download_buffer(void* dst, const Buffer* buffer, vk::DeviceSize offset, vk::DeviceSize size  = vk::WholeSize);
 
         /// @brief Write data to a buffer
         /// @param buffer Buffer to be written
@@ -121,10 +137,15 @@ namespace ember::gpu {
         /// @param offset Offset within buffer (default = 0)
         /// @param size Number of bytes to write (default = buffer->size)
         void write_buffer(Buffer* buffer, const void* src, vk::DeviceSize offset = 0, vk::DeviceSize size = vk::WholeSize);
+        void upload_buffer(Buffer* buffer, const void* src, vk::DeviceSize offset = 0, vk::DeviceSize size = vk::WholeSize);
 
         template<typename T>
         void write_buffer(Buffer* buffer, const std::span<const T>& data, vk::DeviceSize offset = 0) {
             write_buffer(buffer, data.data(), offset, data.size() * sizeof(T));
+        }
+        template<typename T>
+        void upload_buffer(Buffer* buffer, const std::span<const T>& data, vk::DeviceSize offset = 0) {
+            upload_buffer(buffer, data.data(), offset, data.size() * sizeof(T));
         }
 
         template<class Iter>
@@ -135,6 +156,15 @@ namespace ember::gpu {
                 dst++;
             }
             m_device.unmapMemory(buffer->memory);
+        }
+        template<class Iter>
+        void upload_buffer(Buffer* buffer, const Iter begin, const Iter end, vk::DeviceSize offset = 0) {
+            // auto dst = static_cast<Iter::value_type*>(m_device.mapMemory(buffer->memory, offset, buffer->size));
+            // for (auto iter = begin; iter != end; iter++) {
+            //     *dst = *iter;
+            //     dst++;
+            // }
+            // m_device.unmapMemory(buffer->memory);
         }
 
         struct ImageCreateInfo {
@@ -190,8 +220,8 @@ namespace ember::gpu {
 
         ShaderModule* create_shader_module(
             const std::string& glsl,
+            shaderc_shader_kind shader_kind,
             const std::string& filename = "",
-            shaderc_shader_kind shader_kind = shaderc_glsl_infer_from_source, // #pragma shader_stage(something)
             bool optimize = false
         );
         ShaderModule* create_shader_module(const std::filesystem::path& path, bool optimize = false);

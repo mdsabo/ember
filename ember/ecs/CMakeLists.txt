@@ -4,7 +4,12 @@ add_library(ember-ecs
     src/World.cpp
 )
 target_include_directories(ember-ecs PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR})
-target_link_libraries(ember-ecs PRIVATE ember-collections)
+target_link_libraries(
+    ember-ecs
+    PUBLIC
+    eigen
+    PRIVATE
+    ember-collections)
 
 if(EMBER_TESTS)
     add_executable(ember-ecs.tests.unit
@@ -17,6 +22,10 @@ if(EMBER_TESTS)
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}
     )
-    target_link_libraries(ember-ecs.tests.unit PRIVATE ember-ecs Catch2::Catch2WithMain)
+    target_link_libraries(ember-ecs.tests.unit
+        PRIVATE
+        ember-ecs
+        Catch2::Catch2WithMain
+    )
     add_test(NAME ember-ecs.tests.unit COMMAND $<TARGET_FILE:ember-ecs.tests.unit> --skip-benchmarks)
 endif()

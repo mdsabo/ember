@@ -2,6 +2,7 @@
 
 #include <concepts>
 #include <map>
+#include <stdexcept>
 #include <vector>
 
 #include "Entity.h"

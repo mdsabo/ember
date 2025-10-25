@@ -1,3 +1,5 @@
+add_compile_definitions(EMBER_ASSET_PATH="${CMAKE_CURRENT_SOURCE_DIR}/assets/")
+
 add_subdirectory(collections)
 add_subdirectory(ecs)
 add_subdirectory(geometry)

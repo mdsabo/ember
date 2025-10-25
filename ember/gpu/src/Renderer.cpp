@@ -178,9 +178,29 @@ namespace ember::gpu {
     }
 
     void Renderer::read_buffer(void* dst, const Buffer* buffer, vk::DeviceSize offset, vk::DeviceSize size) const {
-        auto src = m_device.mapMemory(buffer->memory, offset, size);
+        auto memsize = (size == vk::WholeSize) ? (buffer->size) : (size);
+
+        auto src = m_device.mapMemory(buffer->memory, offset, memsize);
         std::memcpy(dst, src, size);
         m_device.unmapMemory(buffer->memory);
+    }
+
+    void Renderer::download_buffer(void* dst, const Buffer* buffer, vk::DeviceSize offset, vk::DeviceSize size) {
+        auto staging_buffer = create_buffer(
+            size,
+            vk::BufferUsageFlagBits::eTransferDst,
+            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+        );
+
+        const std::array buffer_copies{
+            vk::BufferCopy{ .srcOffset = offset, .dstOffset = 0, .size = size }
+        };
+
+        record_submit_command_buffer([&](CommandRecorder& recorder) {
+            recorder.copy_buffer(staging_buffer, buffer, buffer_copies);
+        });
+
+        read_buffer(dst, staging_buffer, 0, size);
     }
 
     void Renderer::write_buffer(Buffer* buffer, const void* src, vk::DeviceSize offset, vk::DeviceSize size) {
@@ -189,6 +209,23 @@ namespace ember::gpu {
         auto dst = m_device.mapMemory(buffer->memory, offset, memsize);
         std::memcpy(dst, src, memsize);
         m_device.unmapMemory(buffer->memory);
+    }
+
+    void Renderer::upload_buffer(Buffer* buffer, const void* src, vk::DeviceSize offset, vk::DeviceSize size) {
+        auto staging_buffer = create_buffer(
+            size,
+            vk::BufferUsageFlagBits::eTransferSrc,
+            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+        );
+        write_buffer(staging_buffer, src, 0, size);
+
+        const std::array buffer_copies{
+            vk::BufferCopy{ .srcOffset = 0, .dstOffset = offset, .size = size }
+        };
+
+        record_submit_command_buffer([&](CommandRecorder& recorder) {
+            recorder.copy_buffer(buffer, staging_buffer, buffer_copies);
+        });
     }
 
     Image* Renderer::create_image(const ImageCreateInfo& image_info) {
@@ -476,8 +513,8 @@ namespace ember::gpu {
 
     ShaderModule* Renderer::create_shader_module(
         const std::string& glsl,
-        const std::string& filename,
         shaderc_shader_kind shader_kind,
+        const std::string& filename,
         bool optimize
     ) {
         auto spirv = compile_glsl_to_spirv(glsl, filename, shader_kind, optimize);

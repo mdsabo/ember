@@ -33,6 +33,7 @@ namespace ember::ecs {
         }
     };
 
+    static constexpr Entity WORLD_ORIGIN_ENTITY = Entity(0);
     static constexpr Entity INVALID_ENTITY = Entity(-1ULL);
 
 }

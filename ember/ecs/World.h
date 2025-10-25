@@ -15,6 +15,8 @@ namespace ember::ecs {
 
     class World {
     public:
+        World();
+
         Entity create_entity();
         void destroy_entity(Entity e);
 
