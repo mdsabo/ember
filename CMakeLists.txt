@@ -4,10 +4,10 @@ include(CTest)
 
 option(EMBER_TESTS "Build ember tests" ON)
 option(EMBER_EXAMPLES "Build ember example programs" ON)
+option(EMBER_TOOLS "Build ember tools" ON)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
-
 
 add_subdirectory(ember)
 
@@ -15,7 +15,14 @@ if(EMBER_EXAMPLES)
 # add_subdirectory(examples)
 endif()
 
+if(EMBER_TOOLS)
+    add_subdirectory(tools/meshviewer)
+endif()
+
+set(ASSIMP_INSTALL OFF)
+set(ASSIMP_BUILD_TESTS OFF)
 add_subdirectory(third_party/assimp EXCLUDE_FROM_ALL)
+
 add_subdirectory(third_party/Catch2 EXCLUDE_FROM_ALL)
 add_subdirectory(third_party/eigen EXCLUDE_FROM_ALL)
 

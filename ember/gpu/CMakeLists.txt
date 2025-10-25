@@ -1,9 +1,4 @@
 find_package(Vulkan REQUIRED shaderc_combined)
-add_compile_definitions(
-    VULKAN_HPP_NO_CONSTRUCTORS
-    EMBER_GPU_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-    EMBER_GPU_LOG="ember.gpu"
-)
 
 add_library(ember-gpu
     STATIC
@@ -14,6 +9,12 @@ add_library(ember-gpu
     src/SPIRV.cpp
     src/VulkanInstance.cpp
 )
+target_compile_definitions(ember-gpu
+    PRIVATE
+    VULKAN_HPP_NO_CONSTRUCTORS
+    EMBER_GPU_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    EMBER_GPU_LOG="ember.gpu"
+)
 target_include_directories(ember-gpu
     PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -21,10 +22,13 @@ target_include_directories(ember-gpu
     ${CMAKE_SOURCE_DIR}
 )
 target_link_libraries(ember-gpu
-    ember-util
+    PUBLIC
+    Vulkan::Vulkan
     SDL3::SDL3
     spirv-reflect-static
-    Vulkan::Vulkan
+
+    PRIVATE
+    ember-util
     Vulkan::shaderc_combined
 )
 

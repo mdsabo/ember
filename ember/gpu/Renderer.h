@@ -216,7 +216,7 @@ namespace ember::gpu {
             vk::PipelineTessellationStateCreateInfo tesselation_state;
             vk::PipelineRasterizationStateCreateInfo rasterization_state;
             vk::PipelineMultisampleStateCreateInfo multisample_state;
-            // OPTIONAL vk::PipelineDepthStencilStateCreateInfo depth_stencil_state;
+            const vk::PipelineDepthStencilStateCreateInfo* depth_stencil_state = nullptr;
             vk::PipelineColorBlendStateCreateInfo color_blend_state;
             vk::PipelineRenderingCreateInfo rendering_info;
         };

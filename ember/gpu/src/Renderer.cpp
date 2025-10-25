@@ -703,7 +703,7 @@ namespace ember::gpu {
             .pViewportState = &viewport_state,
             .pRasterizationState = &pipeline_state.rasterization_state,
             .pMultisampleState = &pipeline_state.multisample_state,
-            .pDepthStencilState = nullptr, // FIXME
+            .pDepthStencilState = pipeline_state.depth_stencil_state, // FIXME
             .pColorBlendState = &pipeline_state.color_blend_state,
             .pDynamicState = &dynamic_state,
             .layout = pipeline->layout

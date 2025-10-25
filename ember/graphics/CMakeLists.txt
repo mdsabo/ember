@@ -1,8 +1,11 @@
 add_library(ember-graphics
     STATIC
+    src/ArcballCamera.cpp
+    src/Projections.cpp
     src/Window.cpp
 )
-add_compile_definitions(
+target_compile_definitions(ember-graphics
+    PRIVATE
     VULKAN_HPP_NO_CONSTRUCTORS
     EMBER_GRAPHICS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/"
     EMBER_GRAPHICS_LOG="ember.graphics"
@@ -12,7 +15,7 @@ target_include_directories(ember-graphics
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}
 )
-target_link_libraries(ember-graphics PUBLIC ember-gpu)
+target_link_libraries(ember-graphics PUBLIC ember-gpu eigen)
 
 if(EMBER_TESTS)
     # add_executable(ember-graphics.tests.unit tests/test_ray.cpp)
@@ -21,5 +24,4 @@ if(EMBER_TESTS)
     # add_test(NAME ember-graphics.tests.unit COMMAND $<TARGET_FILE:ember-graphics.tests.unit>)
 endif()
 
-add_subdirectory(examples/mesh_renderer)
 add_subdirectory(examples/sdl_window)

@@ -5,8 +5,6 @@
 
 namespace ember::gpu {
 
-    using vk::ArrayProxy;
-
     class CommandRecorder {
     public:
         CommandRecorder(vk::CommandBuffer command_buffer, uint32_t queue_family_index);
@@ -41,7 +39,7 @@ namespace ember::gpu {
         void bind_descriptor_sets(
             const Pipeline* pipeline,
             uint32_t first_set,
-            const ArrayProxy<vk::DescriptorSet>& descriptor_sets
+            const std::span<const vk::DescriptorSet>& descriptor_sets
         );
 
         void dispatch_compute(uint32_t x, uint32_t y, uint32_t z);

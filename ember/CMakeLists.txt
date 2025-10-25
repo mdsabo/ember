@@ -13,4 +13,8 @@ target_include_directories(ember INTERFACE
 target_link_libraries(ember INTERFACE
     ember-collections
     ember-ecs
+    ember-geometry
+    ember-gpu
+    ember-graphics
+    ember-util
 )
