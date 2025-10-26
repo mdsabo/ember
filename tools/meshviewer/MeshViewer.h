@@ -8,7 +8,7 @@
 #include "ember/ecs/Entity.h"
 #include "ember/ecs/World.h"
 #include "ember/graphics/MeshRenderSystem.h"
-#include "ember/graphics/Window.h"
+#include "ember/graphics/Renderer.h"
 
 using namespace ember;
 
@@ -22,7 +22,7 @@ public:
 private:
     std::shared_ptr<const gpu::VulkanInstance> m_vkinstance;
     std::shared_ptr<const gpu::GraphicsDevice> m_graphics_device;
-    std::unique_ptr<graphics::Window> m_window;
+    std::unique_ptr<graphics::Renderer> m_renderer;
     ecs::World m_world;
     graphics::MeshRenderSystem m_mesh_renderer;
 

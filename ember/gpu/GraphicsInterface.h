@@ -27,10 +27,10 @@ namespace ember::gpu {
         BufferBindInfo(const Buffer* buffer, vk::DeviceSize offset, vk::DeviceSize size): buffer(buffer), offset(offset), size(size) { }
     };
 
-    class Renderer {
+    class GraphicsInterface {
     public:
-        Renderer(std::shared_ptr<const GraphicsDevice> device);
-        ~Renderer();
+        GraphicsInterface(std::shared_ptr<const GraphicsDevice> device);
+        ~GraphicsInterface();
 
         //////////////////////////////////////////////////////////////////////////////////////////////
         // Command Buffers                                                                          //
@@ -279,6 +279,17 @@ namespace ember::gpu {
             vk::Semaphore wait_semaphore
         );
 
+        void begin_rendering_to_swapchain(
+            Swapchain* swapchain,
+            uint32_t image_index,
+            vk::CommandBuffer command_buffer,
+            const vk::ClearValue& clear_value
+        );
+        void end_rendering_to_swapchain(
+            Swapchain* swapchain,
+            uint32_t image_index,
+            vk::CommandBuffer command_buffer
+        );
         void present_swapchain(Swapchain* swapchain, uint32_t image_index);
 
         //////////////////////////////////////////////////////////////////////////////////////////////

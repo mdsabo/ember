@@ -38,7 +38,7 @@ namespace ember::graphics {
         }
     }
 
-    SceneComponent::SceneComponent(const aiScene* scene, gpu::Renderer* renderer) {
+    SceneComponent::SceneComponent(const aiScene* scene, gpu::GraphicsInterface* renderer) {
         meshes.resize(scene->mNumMeshes);
         for (auto i = 0; i < scene->mNumMeshes; i++) {
             auto vertices = get_ai_mesh_vertices(scene->mMeshes[i]);

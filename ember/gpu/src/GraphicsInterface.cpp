@@ -1,4 +1,4 @@
-#include "Renderer.h"
+#include "GraphicsInterface.h"
 
 #include "ember/util/Log.h"
 #include "SPIRV.h"
@@ -8,14 +8,14 @@
 
 namespace ember::gpu {
 
-    Renderer::Renderer(std::shared_ptr<const GraphicsDevice> device): m_gpu(device), m_allocated_command_buffers(0) {
+    GraphicsInterface::GraphicsInterface(std::shared_ptr<const GraphicsDevice> device): m_gpu(device), m_allocated_command_buffers(0) {
         auto [vk_device, queue, command_pool] = device->create_render_objects();
         m_device = vk_device;
         m_queue = queue;
         m_command_pool = command_pool;
     }
 
-    Renderer::~Renderer() {
+    GraphicsInterface::~GraphicsInterface() {
         assert(m_buffer_allocator.allocated_count() == 0);
         assert(m_image_allocator.allocated_count() == 0);
         assert(m_pipeline_allocator.allocated_count() == 0);
@@ -30,7 +30,7 @@ namespace ember::gpu {
     // Command Buffers                                                                          //
     //////////////////////////////////////////////////////////////////////////////////////////////
 
-    vk::CommandBuffer Renderer::allocate_command_buffer(vk::CommandBufferLevel level) {
+    vk::CommandBuffer GraphicsInterface::allocate_command_buffer(vk::CommandBufferLevel level) {
         const vk::CommandBufferAllocateInfo allocate_info {
             .commandPool = m_command_pool,
             .level = level,
@@ -41,18 +41,18 @@ namespace ember::gpu {
         return m_device.allocateCommandBuffers(allocate_info).front();
     }
 
-    vk::CommandBuffer Renderer::create_command_buffer(vk::CommandBufferUsageFlags usage) {
+    vk::CommandBuffer GraphicsInterface::create_command_buffer(vk::CommandBufferUsageFlags usage) {
         auto command_buffer = allocate_command_buffer();
         command_buffer.begin({ .flags = usage });
         return command_buffer;
     }
 
-    void Renderer::destroy_command_buffer(vk::CommandBuffer command_buffer) {
+    void GraphicsInterface::destroy_command_buffer(vk::CommandBuffer command_buffer) {
         m_device.freeCommandBuffers(m_command_pool, command_buffer);
         command_buffer = VK_NULL_HANDLE;
     }
 
-    void Renderer::restart_command_buffer(
+    void GraphicsInterface::restart_command_buffer(
         vk::CommandBuffer command_buffer,
         vk::CommandBufferUsageFlags usage
     ) {
@@ -60,12 +60,12 @@ namespace ember::gpu {
         command_buffer.begin({ .flags = usage });
     }
 
-    void Renderer::record_command_buffer(vk::CommandBuffer command_buffer, const CommandRecordFn& fn) {
+    void GraphicsInterface::record_command_buffer(vk::CommandBuffer command_buffer, const CommandRecordFn& fn) {
         auto recorder = CommandRecorder(command_buffer, m_gpu->queue_family_index());
         fn(recorder);
     }
 
-    void Renderer::record_submit_command_buffer(const CommandRecordFn& fn, vk::Fence fence) {
+    void GraphicsInterface::record_submit_command_buffer(const CommandRecordFn& fn, vk::Fence fence) {
         auto command_buffer = create_command_buffer();
         record_command_buffer(command_buffer, fn);
 
@@ -76,7 +76,7 @@ namespace ember::gpu {
         destroy_command_buffer(command_buffer);
     }
 
-    vk::Fence Renderer::submit_command_buffers(
+    vk::Fence GraphicsInterface::submit_command_buffers(
         const std::span<const vk::CommandBuffer>& command_buffers,
         vk::Fence fence,
         const std::span<const vk::Semaphore>& wait_semaphores,
@@ -103,7 +103,7 @@ namespace ember::gpu {
         return fence;
     }
 
-    vk::Fence Renderer::submit_command_buffer(
+    vk::Fence GraphicsInterface::submit_command_buffer(
         vk::CommandBuffer command_buffer,
         vk::Fence fence,
         const std::span<const vk::Semaphore>& wait_semaphores,
@@ -138,7 +138,7 @@ namespace ember::gpu {
         }
     } // namespace
 
-    vk::DeviceMemory Renderer::allocate_memory(vk::MemoryRequirements requirements, vk::MemoryPropertyFlags properties) {
+    vk::DeviceMemory GraphicsInterface::allocate_memory(vk::MemoryRequirements requirements, vk::MemoryPropertyFlags properties) {
         auto memory_type_index = find_memory_type_index(
             m_gpu->memory_properties(),
             properties,
@@ -152,7 +152,7 @@ namespace ember::gpu {
         return m_device.allocateMemory(alloc_info);
     }
 
-    Buffer* Renderer::create_buffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties) {
+    Buffer* GraphicsInterface::create_buffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties) {
         const vk::BufferCreateInfo buffer_create_info{
             .size = size,
             .usage = usage,
@@ -171,13 +171,13 @@ namespace ember::gpu {
         return res;
     }
 
-    void Renderer::destroy_buffer(Buffer* buffer) {
+    void GraphicsInterface::destroy_buffer(Buffer* buffer) {
         m_device.freeMemory(buffer->memory);
         m_device.destroyBuffer(buffer->buffer);
         m_buffer_allocator.free(buffer);
     }
 
-    void Renderer::read_buffer(void* dst, const Buffer* buffer, vk::DeviceSize offset, vk::DeviceSize size) const {
+    void GraphicsInterface::read_buffer(void* dst, const Buffer* buffer, vk::DeviceSize offset, vk::DeviceSize size) const {
         auto memsize = (size == vk::WholeSize) ? (buffer->size) : (size);
 
         auto src = m_device.mapMemory(buffer->memory, offset, memsize);
@@ -185,7 +185,7 @@ namespace ember::gpu {
         m_device.unmapMemory(buffer->memory);
     }
 
-    void Renderer::download_buffer(void* dst, const Buffer* buffer, vk::DeviceSize offset, vk::DeviceSize size) {
+    void GraphicsInterface::download_buffer(void* dst, const Buffer* buffer, vk::DeviceSize offset, vk::DeviceSize size) {
         auto staging_buffer = create_buffer(
             size,
             vk::BufferUsageFlagBits::eTransferDst,
@@ -203,7 +203,7 @@ namespace ember::gpu {
         read_buffer(dst, staging_buffer, 0, size);
     }
 
-    void Renderer::write_buffer(Buffer* buffer, const void* src, vk::DeviceSize offset, vk::DeviceSize size) {
+    void GraphicsInterface::write_buffer(Buffer* buffer, const void* src, vk::DeviceSize offset, vk::DeviceSize size) {
         auto memsize = (size == vk::WholeSize) ? (buffer->size) : (size);
 
         auto dst = m_device.mapMemory(buffer->memory, offset, memsize);
@@ -211,7 +211,7 @@ namespace ember::gpu {
         m_device.unmapMemory(buffer->memory);
     }
 
-    void Renderer::upload_buffer(Buffer* buffer, const void* src, vk::DeviceSize offset, vk::DeviceSize size) {
+    void GraphicsInterface::upload_buffer(Buffer* buffer, const void* src, vk::DeviceSize offset, vk::DeviceSize size) {
         auto staging_buffer = create_buffer(
             size,
             vk::BufferUsageFlagBits::eTransferSrc,
@@ -228,7 +228,7 @@ namespace ember::gpu {
         });
     }
 
-    Image* Renderer::create_image(const ImageCreateInfo& image_info) {
+    Image* GraphicsInterface::create_image(const ImageCreateInfo& image_info) {
         const vk::ImageCreateInfo image_create_info {
             .imageType = image_info.type,
             .format = image_info.format,
@@ -283,14 +283,14 @@ namespace ember::gpu {
         return res;
     }
 
-    void Renderer::destroy_image(Image* image) {
+    void GraphicsInterface::destroy_image(Image* image) {
         m_device.destroyImageView(image->view);
         m_device.freeMemory(image->memory);
         m_device.destroyImage(image->image);
         m_image_allocator.free(image);
     }
 
-    void Renderer::read_image(void* dst, const Image* image) {
+    void GraphicsInterface::read_image(void* dst, const Image* image) {
         auto properties = m_device.getImageMemoryRequirements(image->image);
         auto src = m_device.mapMemory(image->memory, 0, properties.size);
         std::memcpy(dst, src, properties.size);
@@ -346,7 +346,7 @@ namespace ember::gpu {
         }
     }
 
-    DescriptorSetArray<DescriptorSetBlueprint*> Renderer::create_descriptor_set_blueprints(
+    DescriptorSetArray<DescriptorSetBlueprint*> GraphicsInterface::create_descriptor_set_blueprints(
         const std::span<const ShaderModule* const>& shader_stages
     ) {
         auto layout_bindings = get_descriptor_set_layout_bindings(shader_stages);
@@ -398,7 +398,7 @@ namespace ember::gpu {
         return blueprints;
     }
 
-    void Renderer::destroy_descriptor_set_blueprints(
+    void GraphicsInterface::destroy_descriptor_set_blueprints(
         const std::span<DescriptorSetBlueprint*>& blueprints
     ) {
         for (const auto& blueprint : blueprints) {
@@ -409,7 +409,7 @@ namespace ember::gpu {
         }
     }
 
-    std::vector<vk::DescriptorSet> Renderer::create_descriptor_sets(
+    std::vector<vk::DescriptorSet> GraphicsInterface::create_descriptor_sets(
         DescriptorSetBlueprint* descriptor_set_blueprint,
         uint32_t num_descriptor_sets
     ) {
@@ -431,7 +431,7 @@ namespace ember::gpu {
         return m_device.allocateDescriptorSets(allocate_info);
     }
 
-    void Renderer::destroy_descriptor_sets(
+    void GraphicsInterface::destroy_descriptor_sets(
         DescriptorSetBlueprint* descriptor_set_blueprint,
         const std::span<const vk::DescriptorSet>& descriptor_sets
     ) {
@@ -460,7 +460,7 @@ namespace ember::gpu {
         }
     }
 
-    void Renderer::bind_buffers(
+    void GraphicsInterface::bind_buffers(
         const DescriptorSetBlueprint* descriptor_set_blueprint,
         const std::span<const vk::DescriptorSet>& descriptor_sets,
         const std::span<const Buffer* const>& buffers,
@@ -485,7 +485,7 @@ namespace ember::gpu {
         m_device.updateDescriptorSets(write_descriptor_set, {});
     }
 
-    void Renderer::bind_images(
+    void GraphicsInterface::bind_images(
         const DescriptorSetBlueprint* descriptor_set_blueprint,
         const std::span<const vk::DescriptorSet>& descriptor_sets,
         const std::span<const Image* const>& images,
@@ -513,7 +513,7 @@ namespace ember::gpu {
     // Shaders                                                                                  //
     //////////////////////////////////////////////////////////////////////////////////////////////
 
-    ShaderModule* Renderer::create_shader_module(
+    ShaderModule* GraphicsInterface::create_shader_module(
         const std::string& glsl,
         shaderc_shader_kind shader_kind,
         const std::string& filename,
@@ -531,7 +531,7 @@ namespace ember::gpu {
         return shader_module;
     }
 
-    ShaderModule* Renderer::create_shader_module(const std::filesystem::path& path, bool optimize) {
+    ShaderModule* GraphicsInterface::create_shader_module(const std::filesystem::path& path, bool optimize) {
         auto spirv = compile_glsl_to_spirv(path, optimize);
         const vk::ShaderModuleCreateInfo create_info {
             .codeSize = spirv_code_size(spirv),
@@ -544,7 +544,7 @@ namespace ember::gpu {
         return shader_module;
     }
 
-    void Renderer::destroy_shader_module(ShaderModule* shader_module) {
+    void GraphicsInterface::destroy_shader_module(ShaderModule* shader_module) {
         m_device.destroyShaderModule(shader_module->module);
         m_shader_module2_allocator.free(shader_module); // cleans up reflection
     }
@@ -553,7 +553,7 @@ namespace ember::gpu {
     // Pipelines                                                                                //
     //////////////////////////////////////////////////////////////////////////////////////////////
 
-    vk::PipelineLayout Renderer::create_pipeline_layout(
+    vk::PipelineLayout GraphicsInterface::create_pipeline_layout(
         const std::span<const ShaderStageInfo>& shader_modules,
         const DescriptorSetArray<DescriptorSetBlueprint*>& descriptor_set_blueprints
     ) {
@@ -588,7 +588,7 @@ namespace ember::gpu {
 
     namespace {
 
-        vk::PipelineShaderStageCreateInfo make_shader_stage_create_info(const Renderer::ShaderStageInfo& shader) {
+        vk::PipelineShaderStageCreateInfo make_shader_stage_create_info(const GraphicsInterface::ShaderStageInfo& shader) {
             return vk::PipelineShaderStageCreateInfo {
                 .stage = shader.module->reflection->get_shader_stage(),
                 .module = shader.module->module,
@@ -599,7 +599,7 @@ namespace ember::gpu {
 
     }
 
-    Pipeline* Renderer::create_compute_pipeline(
+    Pipeline* GraphicsInterface::create_compute_pipeline(
         const ShaderStageInfo& shader,
         const DescriptorSetArray<DescriptorSetBlueprint*>& descriptor_set_blueprints
     ) {
@@ -629,12 +629,12 @@ namespace ember::gpu {
 
 
         std::vector<vk::VertexInputAttributeDescription> get_vertex_attributes(
-            const std::span<const Renderer::ShaderStageInfo>& stages
+            const std::span<const GraphicsInterface::ShaderStageInfo>& stages
         ) {
             auto vertex = std::find_if(
                 stages.begin(),
                 stages.end(),
-                [](const Renderer::ShaderStageInfo& stage) {
+                [](const GraphicsInterface::ShaderStageInfo& stage) {
                     return stage.module->reflection->get_shader_stage() == vk::ShaderStageFlagBits::eVertex;
                 }
             );
@@ -670,12 +670,12 @@ namespace ember::gpu {
         }
 
         std::vector<vk::Format> get_color_attachment_formats(
-            const std::span<const Renderer::ShaderStageInfo>& stages
+            const std::span<const GraphicsInterface::ShaderStageInfo>& stages
         ) {
             auto fragment = std::find_if(
                 stages.begin(),
                 stages.end(),
-                [](const Renderer::ShaderStageInfo& stage) {
+                [](const GraphicsInterface::ShaderStageInfo& stage) {
                     return stage.module->reflection->get_shader_stage() == vk::ShaderStageFlagBits::eFragment;
                 }
             );
@@ -689,7 +689,7 @@ namespace ember::gpu {
         }
     }
 
-    Pipeline* Renderer::create_graphics_pipeline(
+    Pipeline* GraphicsInterface::create_graphics_pipeline(
         const std::span<const ShaderStageInfo>& stages,
         const GraphicsPipelineState& pipeline_state,
         const DescriptorSetArray<DescriptorSetBlueprint*>& descriptor_set_blueprints
@@ -757,7 +757,7 @@ namespace ember::gpu {
         return pipeline;
     }
 
-    void Renderer::destroy_pipeline(Pipeline* pipeline) {
+    void GraphicsInterface::destroy_pipeline(Pipeline* pipeline) {
         m_device.destroyPipeline(pipeline->pipeline);
         m_device.destroyPipelineLayout(pipeline->layout);
         m_pipeline_allocator.free(pipeline);
@@ -767,7 +767,7 @@ namespace ember::gpu {
     // Presentation                                                                             //
     //////////////////////////////////////////////////////////////////////////////////////////////
 
-    Swapchain* Renderer::create_swapchain_for_surface(
+    Swapchain* GraphicsInterface::create_swapchain_for_surface(
         vk::SurfaceKHR surface,
         vk::Extent2D window_extent,
         Swapchain* old_swapchain
@@ -830,7 +830,7 @@ namespace ember::gpu {
         return swapchain;
     }
 
-    void Renderer::destroy_swapchain(Swapchain* swapchain) {
+    void GraphicsInterface::destroy_swapchain(Swapchain* swapchain) {
         for (auto render_target : swapchain->render_targets) {
             m_device.destroyImageView(render_target.image->view);
             destroy_image(render_target.depth_image);
@@ -840,7 +840,7 @@ namespace ember::gpu {
         m_device.destroySwapchainKHR(swapchain->swapchain);
     }
 
-    uint32_t Renderer::get_next_swapchain_image(
+    uint32_t GraphicsInterface::get_next_swapchain_image(
         const Swapchain* swapchain,
         vk::Semaphore wait_semaphore
     ) {
@@ -855,7 +855,78 @@ namespace ember::gpu {
         return res.value;
     }
 
-    void Renderer::present_swapchain(Swapchain* swapchain, uint32_t image_index) {
+    void GraphicsInterface::begin_rendering_to_swapchain(
+        Swapchain* swapchain,
+        uint32_t image_index,
+        vk::CommandBuffer command_buffer,
+        const vk::ClearValue& clear_value
+    ) {
+        const auto& render_target = swapchain->render_targets.at(image_index);
+        record_command_buffer(command_buffer, [&](gpu::CommandRecorder& recorder) {
+            const gpu::CommandRecorder::ImageTransitionInfo color_info {
+                .new_layout = vk::ImageLayout::eColorAttachmentOptimal,
+                .src_pipeline_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                .dst_pipeline_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                .dst_access_mask = vk::AccessFlagBits::eColorAttachmentWrite,
+                .subresource_range = gpu::MAX_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
+            };
+            recorder.transition_image_layout(render_target.image, color_info);
+
+            const gpu::CommandRecorder::ImageTransitionInfo depth_info {
+                .new_layout = vk::ImageLayout::eDepthAttachmentOptimal,
+                .src_pipeline_stage = vk::PipelineStageFlagBits::eNone,
+                .dst_pipeline_stage = vk::PipelineStageFlagBits::eEarlyFragmentTests,
+                .dst_access_mask = vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite,
+                .subresource_range = gpu::MAX_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eDepth)
+            };
+            recorder.transition_image_layout(render_target.depth_image, depth_info);
+
+            const std::array color_attachments = {
+                vk::RenderingAttachmentInfo{
+                    .imageView = render_target.image->view,
+                    .imageLayout = render_target.image->layout,
+                    .loadOp = vk::AttachmentLoadOp::eClear,
+                    .storeOp = vk::AttachmentStoreOp::eStore,
+                    .clearValue = clear_value,
+                }
+            };
+            vk::RenderingAttachmentInfo depth_attachment{
+                .imageView = render_target.depth_image->view,
+                .imageLayout = render_target.depth_image->layout,
+                .loadOp = vk::AttachmentLoadOp::eClear,
+                .storeOp = vk::AttachmentStoreOp::eDontCare,
+                .clearValue = vk::ClearValue{
+                    .depthStencil = {
+                        .depth = 1.0f, // always clear depth to 1.0 (farthest away from screen)
+                        .stencil = 0 // FIXME?
+                    }
+                },
+            };
+            recorder.begin_rendering(render_target.image, color_attachments, &depth_attachment);
+        });
+    }
+
+    void GraphicsInterface::end_rendering_to_swapchain(
+        Swapchain* swapchain,
+        uint32_t image_index,
+        vk::CommandBuffer command_buffer
+    ) {
+        const auto& render_target = swapchain->render_targets.at(image_index);
+        record_command_buffer(command_buffer, [&](CommandRecorder& recorder) {
+            recorder.end_rendering();
+
+            const CommandRecorder::ImageTransitionInfo info {
+                .new_layout = vk::ImageLayout::ePresentSrcKHR,
+                .src_pipeline_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput,
+                .dst_pipeline_stage = vk::PipelineStageFlagBits::eNoneKHR,
+                .src_access_mask = vk::AccessFlagBits::eColorAttachmentWrite,
+                .subresource_range = MAX_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
+            };
+            recorder.transition_image_layout(render_target.image, info);
+        });
+    }
+
+    void GraphicsInterface::present_swapchain(Swapchain* swapchain, uint32_t image_index) {
         auto& render_target = swapchain->render_targets.at(image_index);
         const vk::PresentInfoKHR present_info {
             .waitSemaphoreCount = 1,
@@ -873,21 +944,21 @@ namespace ember::gpu {
     // Synchronization                                                                          //
     //////////////////////////////////////////////////////////////////////////////////////////////
 
-    void Renderer::wait_idle() {
+    void GraphicsInterface::wait_idle() {
         m_queue.waitIdle(); // or m_device.waitIdle(), not sure it matters when using one queue
     }
 
-    vk::Fence Renderer::create_fence(bool signaled) {
+    vk::Fence GraphicsInterface::create_fence(bool signaled) {
         return m_device.createFence(vk::FenceCreateInfo{
             .flags = (signaled)?(vk::FenceCreateFlagBits::eSignaled):(vk::FenceCreateFlags{})
         });
     }
 
-    void Renderer::destroy_fence(vk::Fence fence) {
+    void GraphicsInterface::destroy_fence(vk::Fence fence) {
         m_device.destroyFence(fence);
     }
 
-    bool Renderer::wait_for_fences(const std::span<const vk::Fence>& fences, std::chrono::nanoseconds timeout) {
+    bool GraphicsInterface::wait_for_fences(const std::span<const vk::Fence>& fences, std::chrono::nanoseconds timeout) {
         auto result = m_device.waitForFences(
             fences.size(),
             fences.data(),
@@ -899,15 +970,15 @@ namespace ember::gpu {
         return (result == vk::Result::eSuccess);
     }
 
-    void Renderer::reset_fences(const std::span<const vk::Fence>& fences) {
+    void GraphicsInterface::reset_fences(const std::span<const vk::Fence>& fences) {
         m_device.resetFences(fences);
     }
 
-    vk::Semaphore Renderer::create_semaphore() {
+    vk::Semaphore GraphicsInterface::create_semaphore() {
         return m_device.createSemaphore({});
     }
 
-    void Renderer::destroy_semaphore(vk::Semaphore semaphore) {
+    void GraphicsInterface::destroy_semaphore(vk::Semaphore semaphore) {
         m_device.destroySemaphore(semaphore);
     }
 }

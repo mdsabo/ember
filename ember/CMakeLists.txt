@@ -1,22 +1,35 @@
-add_compile_definitions(EMBER_ASSET_PATH="${CMAKE_CURRENT_SOURCE_DIR}/assets/")
+add_compile_definitions(
+    EMBER_LOG="ember"
+    EMBER_ASSET_PATH="${CMAKE_CURRENT_SOURCE_DIR}/assets/"
+)
 
 add_subdirectory(collections)
+add_subdirectory(core)
 add_subdirectory(ecs)
 add_subdirectory(geometry)
 add_subdirectory(gpu)
 add_subdirectory(graphics)
 add_subdirectory(util)
 
-add_library(ember INTERFACE)
-target_include_directories(ember INTERFACE
+add_library(ember
+    STATIC
+    src/Ember.cpp
+)
+target_include_directories(ember
+    PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/..>
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
-target_link_libraries(ember INTERFACE
+target_link_libraries(ember
+    PUBLIC
     ember-collections
+    ember-core
     ember-ecs
     ember-geometry
     ember-gpu
     ember-graphics
     ember-util
+    SDL3::SDL3
 )

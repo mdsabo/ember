@@ -1,15 +1,15 @@
-add_library(ember-graphics
-    STATIC
-    src/MeshRenderSystem.cpp
-    src/SceneComponent.cpp
-    src/Window.cpp
-)
-target_compile_definitions(ember-graphics
-    PRIVATE
+add_compile_definitions(
     VULKAN_HPP_NO_CONSTRUCTORS
     EMBER_GRAPHICS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/"
     EMBER_GRAPHICS_LOG="ember.graphics"
-    EMBER_ASSET_PATH=${EMBER_ASSET_PATH}
+)
+
+add_library(ember-graphics
+    STATIC
+    src/MeshRenderSystem.cpp
+    src/Renderer.cpp
+    src/SceneComponent.cpp
+    src/Window.cpp
 )
 target_include_directories(ember-graphics
     PRIVATE
@@ -21,7 +21,7 @@ target_link_libraries(ember-graphics
     assimp
     ember-ecs
     ember-gpu
-    glm-header-only
+    glm
 )
 
 if(EMBER_TESTS)

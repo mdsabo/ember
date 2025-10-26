@@ -4,11 +4,11 @@
 #include "SceneComponent.h"
 #include "CameraComponent.h"
 
-#include "Window.h"
+#include "Renderer.h"
 #include "ember/ecs/System.h"
 #include "ember/ecs/World.h"
 #include "ember/gpu/CommandRecorder.h"
-#include "ember/gpu/Renderer.h"
+#include "ember/gpu/GraphicsInterface.h"
 
 namespace ember::graphics {
 
@@ -17,10 +17,10 @@ namespace ember::graphics {
         static void init(ecs::World& world);
 
         MeshRenderSystem() = default;
-        MeshRenderSystem(Window* window);
+        MeshRenderSystem(Renderer* window);
 
-        void pre_render(ecs::World& world, Window* window);
-        void render(ecs::World& world, Window* window);
+        void pre_render(ecs::World& world, Renderer* window);
+        void render(ecs::World& world, Renderer* window);
 
     private:
         std::array<gpu::ShaderModule*, 2> m_shaders;

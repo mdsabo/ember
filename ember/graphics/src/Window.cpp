@@ -10,12 +10,9 @@ namespace ember::graphics {
 
     Window::Window(
         std::shared_ptr<const VulkanInstance> instance,
-        const char* title,
-        int w,
-        int h,
-        SDL_WindowFlags flags
+        const WindowSettings& settings
     ): m_instance(instance) {
-        m_window = SDL_CreateWindow(title, w, h, flags | SDL_WINDOW_VULKAN);
+        m_window = SDL_CreateWindow(settings.title, settings.width, settings.height, settings.flags | SDL_WINDOW_VULKAN);
         if (m_window == nullptr) {
             error(EMBER_GRAPHICS_LOG, "Failed to create window : {}", SDL_GetError());
             throw std::runtime_error("Failed to create window!");
@@ -24,29 +21,26 @@ namespace ember::graphics {
         m_surface = m_instance->create_window_surface(m_window);
     }
 
-    void Window::destroy_render_objects() {
-        std::array<vk::Fence, MAX_CONCURRENT_FRAMES> fences;
-        for (auto i = 0; i < MAX_CONCURRENT_FRAMES; i++) {
-            fences[i] = m_per_frame_objects[i].wait_fence;
-        }
-        m_renderer->wait_for_fences(fences);
+    // void Window::destroy_render_objects() {
+    //     std::array<vk::Fence, MAX_CONCURRENT_FRAMES> fences;
+    //     for (auto i = 0; i < MAX_CONCURRENT_FRAMES; i++) {
+    //         fences[i] = m_per_frame_objects[i].wait_fence;
+    //     }
+    //     m_renderer->wait_for_fences(fences);
 
-        for (auto& fobj : m_per_frame_objects) {
-            m_renderer->destroy_command_buffer(fobj.command_buffer);
-            m_renderer->destroy_fence(fobj.wait_fence);
-            m_renderer->destroy_semaphore(fobj.present_complete_semaphore);
-        }
+    //     for (auto& fobj : m_per_frame_objects) {
+    //         m_renderer->destroy_command_buffer(fobj.command_buffer);
+    //         m_renderer->destroy_fence(fobj.wait_fence);
+    //         m_renderer->destroy_semaphore(fobj.present_complete_semaphore);
+    //     }
 
-        m_renderer->destroy_swapchain(m_swapchain);
-        m_renderer = nullptr;
-    }
+    //     m_renderer->destroy_swapchain(m_swapchain);
+    //     m_renderer = nullptr;
+    // }
 
     Window::~Window() {
-        if (m_renderer) destroy_render_objects();
-        if (m_window) {
-            m_instance->destroy_window_surface(m_surface);
-            SDL_DestroyWindow(m_window);
-        }
+        m_instance->destroy_window_surface(m_surface);
+        SDL_DestroyWindow(m_window);
     }
 
     Window::Id Window::id() const {
@@ -72,150 +66,12 @@ namespace ember::graphics {
         }
     }
 
-    Renderer* Window::create_renderer(std::shared_ptr<const GraphicsDevice> graphics_device) {
-        m_renderer = std::make_unique<Renderer>(graphics_device);
-
-        auto [ w, h ] = this->size();
-        const vk::Extent2D window_extent {
-            .width = static_cast<uint32_t>(w),
-            .height = static_cast<uint32_t>(h),
-        };
-        m_swapchain = m_renderer->create_swapchain_for_surface(m_surface, window_extent);
-
-        for (auto& obj : m_per_frame_objects) {
-            obj.command_buffer = m_renderer->create_command_buffer();
-            obj.wait_fence = m_renderer->create_fence(true);
-            obj.present_complete_semaphore = m_renderer->create_semaphore();
+    void Window::set_fullscreen(bool fullscreen) {
+        bool res = SDL_SetWindowFullscreen(m_window, fullscreen);
+        if (!res) {
+            error(EMBER_GRAPHICS_LOG, "Failed to set window fullscreen to {}: {}", fullscreen, SDL_GetError());
+            throw std::runtime_error("Failed to set window fullscreen");
         }
-        m_frame_index = MAX_CONCURRENT_FRAMES - 1; // start at "last" frame so we wrap to 0 on first render
-
-        return m_renderer.get();
-    }
-
-    namespace {
-        void record_begin_rendering_commands(
-            Renderer* renderer,
-            vk::CommandBuffer command_buffer,
-            Swapchain::RenderTarget& render_target
-        ) {
-            renderer->record_command_buffer(command_buffer, [&](CommandRecorder& recorder) {
-                const CommandRecorder::ImageTransitionInfo color_info {
-                    .new_layout = vk::ImageLayout::eColorAttachmentOptimal,
-                    .src_pipeline_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-                    .dst_pipeline_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-                    .dst_access_mask = vk::AccessFlagBits::eColorAttachmentWrite,
-                    .subresource_range = MAX_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
-                };
-                recorder.transition_image_layout(render_target.image, color_info);
-
-                const CommandRecorder::ImageTransitionInfo depth_info {
-                    .new_layout = vk::ImageLayout::eDepthAttachmentOptimal,
-                    .src_pipeline_stage = vk::PipelineStageFlagBits::eNone,
-                    .dst_pipeline_stage = vk::PipelineStageFlagBits::eEarlyFragmentTests,
-                    .dst_access_mask = vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite,
-                    .subresource_range = MAX_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eDepth)
-                };
-                recorder.transition_image_layout(render_target.depth_image, depth_info);
-
-                const std::array color_attachments = {
-                    vk::RenderingAttachmentInfo{
-                        .imageView = render_target.image->view,
-                        .imageLayout = render_target.image->layout,
-                        .loadOp = vk::AttachmentLoadOp::eClear,
-                        .storeOp = vk::AttachmentStoreOp::eStore,
-                        .clearValue = CLEAR_COLOR(0.0f, 0.0f, 0.2f, 0.0f),
-                    }
-                };
-                vk::RenderingAttachmentInfo depth_attachment{
-                    .imageView = render_target.depth_image->view,
-                    .imageLayout = render_target.depth_image->layout,
-                    .loadOp = vk::AttachmentLoadOp::eClear,
-                    .storeOp = vk::AttachmentStoreOp::eDontCare,
-                    .clearValue = vk::ClearValue{
-                        .depthStencil = vk::ClearDepthStencilValue{
-                            .depth = 1.0,
-                            //.stencil = 0
-                        }
-                    }
-                };
-                recorder.begin_rendering(render_target.image, color_attachments, &depth_attachment);
-
-                // FIXME
-                recorder.set_scissor(vk::Rect2D{
-                    .offset = { 0, 0 },
-                    .extent = { render_target.image->extent.width, render_target.image->extent.height }
-                });
-            });
-        }
-    }
-
-    vk::CommandBuffer& Window::begin_rendering_frame() {
-        m_frame_index = (m_frame_index + 1) % MAX_CONCURRENT_FRAMES;
-
-        auto& fobj = m_per_frame_objects.at(m_frame_index);
-
-        const std::array fence{fobj.wait_fence};
-        m_renderer->wait_for_fences(fence);
-        m_renderer->reset_fences(fence);
-
-        m_next_swapchain_image = m_renderer->get_next_swapchain_image(
-            m_swapchain,
-            fobj.present_complete_semaphore
-        );
-
-        m_renderer->restart_command_buffer(fobj.command_buffer);
-
-        record_begin_rendering_commands(
-            m_renderer.get(),
-            fobj.command_buffer,
-            m_swapchain->render_targets.at(m_next_swapchain_image)
-        );
-
-        return fobj.command_buffer;
-    }
-
-    namespace {
-        void record_end_rendering_commands(
-            Renderer* renderer,
-            vk::CommandBuffer command_buffer,
-            Swapchain::RenderTarget& render_target
-        ) {
-            renderer->record_command_buffer(command_buffer, [&](CommandRecorder& recorder) {
-                recorder.end_rendering();
-
-                const CommandRecorder::ImageTransitionInfo info {
-                    .new_layout = vk::ImageLayout::ePresentSrcKHR,
-                    .src_pipeline_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput,
-                    .dst_pipeline_stage = vk::PipelineStageFlagBits::eNoneKHR,
-                    .src_access_mask = vk::AccessFlagBits::eColorAttachmentWrite,
-                    .subresource_range = MAX_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
-                };
-                recorder.transition_image_layout(render_target.image, info);
-            });
-        }
-    }
-
-    void Window::present_frame() {
-        auto& fobj = m_per_frame_objects.at(m_frame_index);
-        auto& render_target = m_swapchain->render_targets.at(m_next_swapchain_image);
-
-        record_end_rendering_commands(
-            m_renderer.get(),
-            fobj.command_buffer,
-            render_target
-        );
-
-        m_renderer->submit_command_buffer(
-            fobj.command_buffer,
-            fobj.wait_fence,
-            std::array{fobj.present_complete_semaphore},
-            std::array{
-                vk::PipelineStageFlags(vk::PipelineStageFlagBits::eColorAttachmentOutput)
-            },
-            std::array{render_target.render_complete}
-        );
-
-        m_renderer->present_swapchain(m_swapchain, m_next_swapchain_image);
     }
 
 }

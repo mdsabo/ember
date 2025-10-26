@@ -21,9 +21,17 @@ void MeshViewer::create_window() {
             // .vk_layer_api_dump = true
         }
     });
-    m_window = std::make_unique<graphics::Window>(m_vkinstance, "Mesh Viewer", 1920, 1080);
-    m_graphics_device = gpu::GraphicsDevice::create(m_vkinstance, m_window->surface());
-    m_window->create_renderer(m_graphics_device);
+    auto window = std::make_unique<graphics::Window>(
+        m_vkinstance,
+        graphics::WindowSettings {
+            .title = "SceneViewer",
+            .width = 1920,
+            .height = 1080,
+            .flags = SDL_WINDOW_HIDDEN
+        }
+    );
+    m_graphics_device = gpu::GraphicsDevice::create(m_vkinstance, window->surface());
+    m_renderer = std::make_unique<graphics::Renderer>(m_graphics_device, std::move(window));
 }
 
 void MeshViewer::create_camera() {
@@ -33,7 +41,7 @@ void MeshViewer::create_camera() {
     transforms.at(m_camera).transform = glm::translate(glm::identity<glm::mat4>(), glm::vec3(1.5, 1.5, 1.5));
 
     auto& cameras = m_world.write_component<graphics::CameraComponent>();
-    const auto swapchain_extent = m_window->get_swapchain_extent();
+    const auto swapchain_extent = m_renderer->get_swapchain_extent();
     cameras.insert(m_camera, graphics::CameraComponent{
         .focal_point = ecs::WORLD_ORIGIN_ENTITY,
         .projection = glm::infinitePerspective(
@@ -69,7 +77,7 @@ void MeshViewer::load_scene(const char* path) {
     );
 
     auto& scenes = m_world.write_component<graphics::SceneComponent>();
-    scenes.insert(m_scene, graphics::SceneComponent(ai_scene, m_window->get_renderer()));
+    scenes.insert(m_scene, graphics::SceneComponent(ai_scene, m_renderer->get_renderer()));
 
     auto& meshes = m_world.write_component<graphics::MeshComponent>();
     auto& transforms = m_world.write_component<ecs::TransformComponent>();
@@ -92,7 +100,7 @@ MeshViewer::MeshViewer(const char* scene_path) {
     create_window();
 
     graphics::MeshRenderSystem::init(m_world);
-    m_mesh_renderer = graphics::MeshRenderSystem(m_window.get());
+    m_mesh_renderer = graphics::MeshRenderSystem(m_renderer.get());
 
     create_camera();
     load_scene(scene_path);
@@ -121,7 +129,7 @@ void MeshViewer::update_model() {
 }
 
 void MeshViewer::run() {
-    m_window->set_visible(true);
+    m_renderer->window()->set_visible(true);
 
     SDL_Event e;
     SDL_zero(e);
@@ -133,10 +141,11 @@ void MeshViewer::run() {
 
         //update_model();
 
-        m_mesh_renderer.pre_render(m_world, m_window.get());
+        m_mesh_renderer.pre_render(m_world, m_renderer.get());
 
-        auto command_buffer = m_window->begin_rendering_frame();
-        m_mesh_renderer.render(m_world, m_window.get());
-        m_window->present_frame();
+        auto command_buffer = m_renderer->begin_rendering();
+        m_mesh_renderer.render(m_world, m_renderer.get());
+        m_renderer->end_rendering();
+        m_renderer->present_frame();
     }
 }

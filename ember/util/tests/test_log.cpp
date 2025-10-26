@@ -19,7 +19,7 @@ public:
 TEST_CASE("ember log macros write manifest, fmt and args to logger vformat function", "[Log]") {
     auto logger = std::make_unique<TestLogger>();
 
-    ember::util::log(
+    log(
         logger.get(),
         { "test-log", LogLevel::Info, "function", "file", 420},
         "Hello, {}", "World"

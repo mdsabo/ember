@@ -1,19 +1,19 @@
 find_package(Vulkan REQUIRED shaderc_combined)
 
+add_compile_definitions(
+    VULKAN_HPP_NO_CONSTRUCTORS
+    EMBER_GPU_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    EMBER_GPU_LOG="ember.gpu"
+)
+
 add_library(ember-gpu
     STATIC
     src/CommandRecorder.cpp
     src/GraphicsDevice.cpp
-    src/Renderer.cpp
+    src/GraphicsInterface.cpp
     src/ShaderReflection.cpp
     src/SPIRV.cpp
     src/VulkanInstance.cpp
-)
-target_compile_definitions(ember-gpu
-    PRIVATE
-    VULKAN_HPP_NO_CONSTRUCTORS
-    EMBER_GPU_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-    EMBER_GPU_LOG="ember.gpu"
 )
 target_include_directories(ember-gpu
     PRIVATE
@@ -23,12 +23,13 @@ target_include_directories(ember-gpu
 )
 target_link_libraries(ember-gpu
     PUBLIC
-    Vulkan::Vulkan
+    ember-util
     SDL3::SDL3
     spirv-reflect-static
+    Vulkan::Vulkan
 
     PRIVATE
-    ember-util
+    ember-core
     Vulkan::shaderc_combined
 )
 
@@ -39,7 +40,7 @@ if(EMBER_TESTS)
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}
     )
-    target_link_libraries(ember-gpu.tests.compute-squares PRIVATE ember-gpu ember-util)
+    target_link_libraries(ember-gpu.tests.compute-squares PRIVATE ember-core ember-gpu)
     if(WIN32)
         add_custom_command(
             TARGET ember-gpu.tests.compute-squares
@@ -47,6 +48,7 @@ if(EMBER_TESTS)
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 $<TARGET_RUNTIME_DLLS:ember-gpu.tests.compute-squares>
                 $<TARGET_FILE_DIR:ember-gpu.tests.compute-squares>
+            COMMAND_EXPAND_LISTS
         )
     endif()
     add_test(NAME ember-gpu.tests.compute-squares COMMAND $<TARGET_FILE:ember-gpu.tests.compute-squares>)
@@ -67,7 +69,7 @@ if(EMBER_EXAMPLES)
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         target_compile_options(ember-gpu.examples.compute-raytracer PRIVATE -Wno-deprecated-declarations)
     endif()
-    target_link_libraries(ember-gpu.examples.compute-raytracer PRIVATE ember-gpu glm-header-only stb)
+    target_link_libraries(ember-gpu.examples.compute-raytracer PRIVATE ember-gpu glm stb)
     if(WIN32)
         add_custom_command(
             TARGET ember-gpu.examples.compute-raytracer
@@ -75,6 +77,7 @@ if(EMBER_EXAMPLES)
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 $<TARGET_RUNTIME_DLLS:ember-gpu.examples.compute-raytracer>
                 $<TARGET_FILE_DIR:ember-gpu.examples.compute-raytracer>
+            COMMAND_EXPAND_LISTS
         )
     endif()
 endif()

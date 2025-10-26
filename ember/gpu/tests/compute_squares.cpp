@@ -1,4 +1,4 @@
-#include "Renderer.h"
+#include "GraphicsInterface.h"
 #include "ember/util/ArgParser.h"
 #include "ember/util/Log.h"
 
@@ -21,53 +21,53 @@ int main(int argc, const char* argv[]) {
 
     auto instance = VulkanInstance::create(app_info);
     auto device = GraphicsDevice::create(instance);
-    auto renderer = Renderer(device);
+    auto gfxinterface = GraphicsInterface(device);
 
     constexpr auto NUM_ELEMENTS = 64;
     constexpr auto BUFFER_SIZE = sizeof(uint32_t)*NUM_ELEMENTS;
-    auto src_host_buffer = renderer.create_buffer(
+    auto src_host_buffer = gfxinterface.create_buffer(
         BUFFER_SIZE,
         vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc,
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
     );
-    auto src_gpu_buffer = renderer.create_buffer(
+    auto src_gpu_buffer = gfxinterface.create_buffer(
         BUFFER_SIZE,
         vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
         vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eHostVisible
     );
 
-    auto dst_host_buffer = renderer.create_buffer(
+    auto dst_host_buffer = gfxinterface.create_buffer(
         BUFFER_SIZE,
         vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
     );
-    auto dst_gpu_buffer = renderer.create_buffer(
+    auto dst_gpu_buffer = gfxinterface.create_buffer(
         BUFFER_SIZE,
         vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc,
         vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eHostVisible
     );
 
     std::vector<uint32_t> data(NUM_ELEMENTS, 0.0);
-    renderer.write_buffer(dst_host_buffer, data.data(), 0, BUFFER_SIZE);
+    gfxinterface.write_buffer(dst_host_buffer, data.data(), 0, BUFFER_SIZE);
     for (uint32_t i = 0; i < NUM_ELEMENTS; i++) data[i] = i;
-    renderer.write_buffer(src_host_buffer, data.data(), 0, BUFFER_SIZE);
+    gfxinterface.write_buffer(src_host_buffer, data.data(), 0, BUFFER_SIZE);
 
     auto shader_path = std::filesystem::path(EMBER_GPU_DIR)
         .append("tests/compute_squares.comp");
-    auto shader_module = renderer.create_shader_module(shader_path);
+    auto shader_module = gfxinterface.create_shader_module(shader_path);
 
-    auto descriptor_set_blueprints = renderer.create_descriptor_set_blueprints(std::array{shader_module});
-    auto descriptor_sets = renderer.create_descriptor_sets(descriptor_set_blueprints[0], 1);
-    renderer.bind_buffers(
+    auto descriptor_set_blueprints = gfxinterface.create_descriptor_set_blueprints(std::array{shader_module});
+    auto descriptor_sets = gfxinterface.create_descriptor_sets(descriptor_set_blueprints[0], 1);
+    gfxinterface.bind_buffers(
         descriptor_set_blueprints[0],
         descriptor_sets,
         std::array{ src_gpu_buffer, dst_gpu_buffer },
         0
     );
 
-    auto pipeline = renderer.create_compute_pipeline({ shader_module }, descriptor_set_blueprints);
+    auto pipeline = gfxinterface.create_compute_pipeline({ shader_module }, descriptor_set_blueprints);
 
-    renderer.record_submit_command_buffer([&](CommandRecorder& recorder) {
+    gfxinterface.record_submit_command_buffer([&](CommandRecorder& recorder) {
         recorder.copy_buffer(src_gpu_buffer, src_host_buffer);
         recorder.bind_pipeline(pipeline);
         recorder.bind_descriptor_sets(pipeline, 0, descriptor_sets);
@@ -76,16 +76,16 @@ int main(int argc, const char* argv[]) {
     });
 
     std::vector<uint32_t> squared(NUM_ELEMENTS);
-    renderer.read_buffer(squared.data(), dst_host_buffer, 0, BUFFER_SIZE);
+    gfxinterface.read_buffer(squared.data(), dst_host_buffer, 0, BUFFER_SIZE);
 
-    renderer.destroy_pipeline(pipeline);
-    renderer.destroy_descriptor_sets(descriptor_set_blueprints[0], descriptor_sets);
-    renderer.destroy_descriptor_set_blueprints(descriptor_set_blueprints);
-    renderer.destroy_shader_module(shader_module);
-    renderer.destroy_buffer(src_host_buffer);
-    renderer.destroy_buffer(src_gpu_buffer);
-    renderer.destroy_buffer(dst_host_buffer);
-    renderer.destroy_buffer(dst_gpu_buffer);
+    gfxinterface.destroy_pipeline(pipeline);
+    gfxinterface.destroy_descriptor_sets(descriptor_set_blueprints[0], descriptor_sets);
+    gfxinterface.destroy_descriptor_set_blueprints(descriptor_set_blueprints);
+    gfxinterface.destroy_shader_module(shader_module);
+    gfxinterface.destroy_buffer(src_host_buffer);
+    gfxinterface.destroy_buffer(src_gpu_buffer);
+    gfxinterface.destroy_buffer(dst_host_buffer);
+    gfxinterface.destroy_buffer(dst_gpu_buffer);
 
     for (uint32_t i = 0; i < NUM_ELEMENTS; i+=4) {
         if (squared[i] != (i*i)) {

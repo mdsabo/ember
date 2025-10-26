@@ -15,17 +15,17 @@ namespace ember::graphics {
         world.add_component<CameraComponent>();
     }
 
-    MeshRenderSystem::MeshRenderSystem(Window* window) {
-        auto renderer = window->get_renderer();
+    MeshRenderSystem::MeshRenderSystem(Renderer* window) {
+        auto gfxinterface = window->get_renderer();
 
-        m_shaders[0] = renderer->create_shader_module(EMBER_ASSET_PATH "shaders/mesh_render_system.vert");
-        m_shaders[1] = renderer->create_shader_module(EMBER_ASSET_PATH "shaders/mesh_render_system.frag");
+        m_shaders[0] = gfxinterface->create_shader_module(EMBER_ASSET_PATH "shaders/mesh_render_system.vert");
+        m_shaders[1] = gfxinterface->create_shader_module(EMBER_ASSET_PATH "shaders/mesh_render_system.frag");
 
-        m_descriptor_set_blueprints = renderer->create_descriptor_set_blueprints(m_shaders);
+        m_descriptor_set_blueprints = gfxinterface->create_descriptor_set_blueprints(m_shaders);
 
-        const std::array<Renderer::ShaderStageInfo, 2> shader_stages {
-            Renderer::ShaderStageInfo{ .module = m_shaders[0] },
-            Renderer::ShaderStageInfo{ .module = m_shaders[1] }
+        const std::array<GraphicsInterface::ShaderStageInfo, 2> shader_stages {
+            GraphicsInterface::ShaderStageInfo{ .module = m_shaders[0] },
+            GraphicsInterface::ShaderStageInfo{ .module = m_shaders[1] }
         };
         const std::array vertex_bindings{
             vk::VertexInputBindingDescription {
@@ -53,7 +53,7 @@ namespace ember::graphics {
         };
 
         // see https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
-        const Renderer::GraphicsPipelineState pipeline_state {
+        const GraphicsInterface::GraphicsPipelineState pipeline_state {
             .vertex_bindings = vertex_bindings,
             .input_assembly_state = vk::PipelineInputAssemblyStateCreateInfo {
                 .topology = vk::PrimitiveTopology::eTriangleList,
@@ -83,20 +83,20 @@ namespace ember::graphics {
                 .depthAttachmentFormat = vk::Format::eD32Sfloat,
             }
         };
-        m_pipeline = renderer->create_graphics_pipeline(
+        m_pipeline = gfxinterface->create_graphics_pipeline(
             shader_stages,
             pipeline_state,
             m_descriptor_set_blueprints
         );
 
-        m_uniform_buffer = renderer->create_uniform_buffer(sizeof(glm::mat4));
-        m_uniform_staging_buffer = renderer->create_buffer(
+        m_uniform_buffer = gfxinterface->create_uniform_buffer(sizeof(glm::mat4));
+        m_uniform_staging_buffer = gfxinterface->create_buffer(
             sizeof(glm::mat4),
             vk::BufferUsageFlagBits::eTransferSrc,
             vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostCached
         );
-        m_ubo = renderer->create_descriptor_sets(m_descriptor_set_blueprints[0], 1).front();
-        renderer->bind_buffers(
+        m_ubo = gfxinterface->create_descriptor_sets(m_descriptor_set_blueprints[0], 1).front();
+        gfxinterface->bind_buffers(
             m_descriptor_set_blueprints[0],
             std::array{m_ubo},
             std::array{m_uniform_buffer},
@@ -120,30 +120,29 @@ namespace ember::graphics {
         }
     }
 
-    void MeshRenderSystem::pre_render(ecs::World& world, Window* window) {
-        auto renderer = window->get_renderer();
-        auto command_buffer = window->get_active_command_buffer();
+    void MeshRenderSystem::pre_render(ecs::World& world, Renderer* window) {
+        auto gfxinterface = window->get_renderer();
 
         auto& camera_components = world.read_component<CameraComponent>();
 
         for (const auto& [ce, camera] : camera_components) {
             auto view_projection_matrix = get_camera_vp_matrix(ce, camera, world);
-            renderer->write_buffer<glm::mat4>(m_uniform_staging_buffer, std::array{view_projection_matrix});
+            gfxinterface->write_buffer<glm::mat4>(m_uniform_staging_buffer, std::array{view_projection_matrix});
 
-            renderer->record_submit_command_buffer([this, &camera, &world](gpu::CommandRecorder& recorder) {
+            gfxinterface->record_submit_command_buffer([this, &camera, &world](gpu::CommandRecorder& recorder) {
                 recorder.copy_buffer(m_uniform_buffer, m_uniform_staging_buffer);
             });
         }
     }
 
 
-    void MeshRenderSystem::render(ecs::World& world, Window* window) {
-        auto renderer = window->get_renderer();
+    void MeshRenderSystem::render(ecs::World& world, Renderer* window) {
+        auto gfxinterface = window->get_renderer();
         auto command_buffer = window->get_active_command_buffer();
 
         auto& camera_components = world.read_component<CameraComponent>();
 
-        renderer->record_command_buffer(command_buffer, [this](gpu::CommandRecorder& recorder) {
+        gfxinterface->record_command_buffer(command_buffer, [this](gpu::CommandRecorder& recorder) {
                 recorder.bind_pipeline(m_pipeline);
                 recorder.bind_descriptor_sets(m_pipeline, 0, std::array{m_ubo});
         });
@@ -152,7 +151,7 @@ namespace ember::graphics {
         auto mesh_entities = world.query<ecs::TransformComponent, MeshComponent>().as_set();
 
         for (const auto& [ce, camera] : camera_components) {
-            renderer->record_command_buffer(command_buffer, [&](gpu::CommandRecorder& recorder) {
+            gfxinterface->record_command_buffer(command_buffer, [&](gpu::CommandRecorder& recorder) {
                 // Setup camera details
                 recorder.set_viewport(camera.viewport);
 

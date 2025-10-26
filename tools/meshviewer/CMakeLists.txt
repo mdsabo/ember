@@ -13,7 +13,7 @@ target_link_libraries(ember.tools.meshviewer
     PRIVATE
     ember
     assimp
-    glm-header-only
+    glm
     SDL3::SDL3
 )
 if(WIN32)

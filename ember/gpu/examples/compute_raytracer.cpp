@@ -7,7 +7,7 @@
 #include <fstream>
 #include <vector>
 
-#include "Renderer.h"
+#include "GraphicsInterface.h"
 #include "VulkanHelpers.h"
 #include "ember/util/ArgParser.h"
 #include "ember/util/Log.h"
@@ -42,27 +42,27 @@ int main(int argc, const char* argv[]) {
 
     auto instance = VulkanInstance::create(app_info);
     auto device = GraphicsDevice::create(instance);
-    auto renderer = Renderer(device);
+    auto gfxinterface = GraphicsInterface(device);
 
     auto vertices = get_vertices();
     const auto vertex_buffer_size = sizeof(Vertex)*vertices.size();
 
-    auto vertex_staging_buffer = renderer.create_buffer(
+    auto vertex_staging_buffer = gfxinterface.create_buffer(
         vertex_buffer_size,
         vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc,
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
     );
-    auto vertex_buffer = renderer.create_buffer(
+    auto vertex_buffer = gfxinterface.create_buffer(
         vertex_buffer_size,
         vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
         vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eHostVisible
     );
 
-    renderer.write_buffer(vertex_buffer, vertices.begin(), vertices.end());
+    gfxinterface.write_buffer(vertex_buffer, vertices.begin(), vertices.end());
 
     constexpr auto IMAGE_DIM_X = 1024;
     constexpr auto IMAGE_DIM_Y = 768;
-    auto output_image = renderer.create_image(Renderer::ImageCreateInfo {
+    auto output_image = gfxinterface.create_image(GraphicsInterface::ImageCreateInfo {
         .type = vk::ImageType::e2D,
         .format = vk::Format::eR8G8B8A8Uint,
         .extent = vk::Extent3D{ .width = IMAGE_DIM_X, .height = IMAGE_DIM_Y, .depth = 1 },
@@ -70,7 +70,7 @@ int main(int argc, const char* argv[]) {
         .layout = vk::ImageLayout::eGeneral,
         .memory_properties = vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eHostVisible
     });
-    auto output_staging_buffer = renderer.create_buffer(
+    auto output_staging_buffer = gfxinterface.create_buffer(
         IMAGE_DIM_X*IMAGE_DIM_Y*4,
         vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
@@ -78,17 +78,17 @@ int main(int argc, const char* argv[]) {
 
     auto shader_path = std::filesystem::path(EMBER_GPU_DIR)
         .append("examples/raytracer.comp");
-    auto shader_module = renderer.create_shader_module(shader_path);
+    auto shader_module = gfxinterface.create_shader_module(shader_path);
 
-    auto descriptor_set_blueprints = renderer.create_descriptor_set_blueprints(std::array{shader_module});
-    auto descriptor_sets = renderer.create_descriptor_sets(descriptor_set_blueprints[0], 1);
-    renderer.bind_buffers(descriptor_set_blueprints[0], descriptor_sets, std::array{ vertex_buffer }, 0);
-    renderer.bind_images(descriptor_set_blueprints[0], descriptor_sets, std::array{ output_image }, 1);
+    auto descriptor_set_blueprints = gfxinterface.create_descriptor_set_blueprints(std::array{shader_module});
+    auto descriptor_sets = gfxinterface.create_descriptor_sets(descriptor_set_blueprints[0], 1);
+    gfxinterface.bind_buffers(descriptor_set_blueprints[0], descriptor_sets, std::array{ vertex_buffer }, 0);
+    gfxinterface.bind_images(descriptor_set_blueprints[0], descriptor_sets, std::array{ output_image }, 1);
 
-    auto pipeline = renderer.create_compute_pipeline({ shader_module }, descriptor_set_blueprints);
+    auto pipeline = gfxinterface.create_compute_pipeline({ shader_module }, descriptor_set_blueprints);
 
-    auto command_buffer = renderer.create_command_buffer();
-    renderer.record_submit_command_buffer([&](CommandRecorder& recorder) {
+    auto command_buffer = gfxinterface.create_command_buffer();
+    gfxinterface.record_submit_command_buffer([&](CommandRecorder& recorder) {
         recorder.copy_buffer(vertex_buffer, vertex_staging_buffer);
         recorder.bind_pipeline(pipeline);
         recorder.bind_descriptor_sets(pipeline, 0, descriptor_sets);
@@ -107,16 +107,16 @@ int main(int argc, const char* argv[]) {
     });
 
     std::vector<uint32_t> image_data(IMAGE_DIM_X*IMAGE_DIM_Y);
-    renderer.read_buffer(image_data.data(), output_staging_buffer, 0, IMAGE_DIM_X*IMAGE_DIM_Y*4);
+    gfxinterface.read_buffer(image_data.data(), output_staging_buffer, 0, IMAGE_DIM_X*IMAGE_DIM_Y*4);
 
-    renderer.destroy_pipeline(pipeline);
-    renderer.destroy_descriptor_sets(descriptor_set_blueprints[0], descriptor_sets);
-    renderer.destroy_descriptor_set_blueprints(descriptor_set_blueprints);
-    renderer.destroy_shader_module(shader_module);
-    renderer.destroy_buffer(output_staging_buffer);
-    renderer.destroy_image(output_image);
-    renderer.destroy_buffer(vertex_staging_buffer);
-    renderer.destroy_buffer(vertex_buffer);
+    gfxinterface.destroy_pipeline(pipeline);
+    gfxinterface.destroy_descriptor_sets(descriptor_set_blueprints[0], descriptor_sets);
+    gfxinterface.destroy_descriptor_set_blueprints(descriptor_set_blueprints);
+    gfxinterface.destroy_shader_module(shader_module);
+    gfxinterface.destroy_buffer(output_staging_buffer);
+    gfxinterface.destroy_image(output_image);
+    gfxinterface.destroy_buffer(vertex_staging_buffer);
+    gfxinterface.destroy_buffer(vertex_buffer);
 
     auto output_path = std::filesystem::path(EMBER_GPU_DIR)
         .append("examples/raytracer.output.bmp")

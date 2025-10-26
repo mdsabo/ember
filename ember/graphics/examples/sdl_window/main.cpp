@@ -9,7 +9,7 @@
 #include <string>
 #include <string_view>
 
-#include "ember/gpu/Renderer.h"
+#include "ember/gpu/GraphicsInterface.h"
 #include "ember/gpu/VulkanHelpers.h"
 #include "ember/util/Log.h"
 #include "Window.h"
@@ -33,7 +33,7 @@ void run() {
     });
     auto window = Window(vkinstance, "SDL Playground", 800, 600);
     auto graphics_device = GraphicsDevice::create(vkinstance, window.surface());
-    auto renderer = window.create_renderer(graphics_device);
+    auto gfxinterface = window.create_renderer(graphics_device);
 
     auto vertex_shader_path = std::filesystem::path(EMBER_GRAPHICS_DIR)
         .append("examples/sdl_window/sdl_window.vert");
@@ -41,15 +41,15 @@ void run() {
         .append("examples/sdl_window/sdl_window.frag");
 
     std::array shaders = {
-        renderer->create_shader_module(vertex_shader_path),
-        renderer->create_shader_module(fragment_shader_path)
+        gfxinterface->create_shader_module(vertex_shader_path),
+        gfxinterface->create_shader_module(fragment_shader_path)
     };
 
-    auto descriptor_set_blueprints = renderer->create_descriptor_set_blueprints(shaders);
+    auto descriptor_set_blueprints = gfxinterface->create_descriptor_set_blueprints(shaders);
 
-    const std::array<Renderer::ShaderStageInfo, 2> shader_stages {
-        Renderer::ShaderStageInfo{ .module = shaders[0] },
-        Renderer::ShaderStageInfo{ .module = shaders[1] }
+    const std::array<GraphicsInterface::ShaderStageInfo, 2> shader_stages {
+        GraphicsInterface::ShaderStageInfo{ .module = shaders[0] },
+        GraphicsInterface::ShaderStageInfo{ .module = shaders[1] }
     };
     const std::array vertex_bindings{
         vk::VertexInputBindingDescription {
@@ -69,7 +69,7 @@ void run() {
     const auto swapchain_format = window.get_swapchain_format();
 
     // see https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
-    const Renderer::GraphicsPipelineState pipeline_state {
+    const GraphicsInterface::GraphicsPipelineState pipeline_state {
         .vertex_bindings = vertex_bindings,
         .input_assembly_state = vk::PipelineInputAssemblyStateCreateInfo {
             .topology = vk::PrimitiveTopology::eTriangleList,
@@ -98,7 +98,7 @@ void run() {
             .pColorAttachmentFormats = &swapchain_format,
         }
     };
-    auto pipeline = renderer->create_graphics_pipeline(
+    auto pipeline = gfxinterface->create_graphics_pipeline(
         shader_stages,
         pipeline_state,
         descriptor_set_blueprints
@@ -109,18 +109,20 @@ void run() {
         Vertex{ {  0.0,  0.5, 0.0 }, { 0.0, 1.0, 0.0 } },
         Vertex{ {  0.5, -0.5, 0.0 }, { 0.0, 0.0, 1.0 } }
     };
-    auto vertex_buffer = renderer->create_vertex_buffer(
+    auto vertex_buffer = gfxinterface->create_buffer(
         sizeof(Vertex) * VERTICES.size(),
+        vk::BufferUsageFlagBits::eVertexBuffer,
         vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
     );
-    renderer->write_buffer<Vertex>(vertex_buffer, VERTICES);
+    gfxinterface->write_buffer<Vertex>(vertex_buffer, VERTICES);
 
     constexpr std::array<uint16_t, 3> INDICES = { 0, 1, 2 };
-    auto index_buffer = renderer->create_index_buffer(
+    auto index_buffer = gfxinterface->create_buffer(
         sizeof(uint16_t) * INDICES.size(),
+        vk::BufferUsageFlagBits::eIndexBuffer,
         vk::MemoryPropertyFlagBits::eDeviceLocal | vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
     );
-    renderer->write_buffer<uint16_t>(index_buffer, INDICES);
+    gfxinterface->write_buffer<uint16_t>(index_buffer, INDICES);
 
     window.set_visible(true);
 
@@ -134,7 +136,7 @@ void run() {
 
         auto command_buffer = window.begin_rendering_frame();
 
-        renderer->record_command_buffer(command_buffer, [&](CommandRecorder& recorder) {
+        gfxinterface->record_command_buffer(command_buffer, [&](CommandRecorder& recorder) {
             recorder.bind_pipeline(pipeline);
             recorder.bind_vertex_buffer(vertex_buffer);
             recorder.bind_index_buffer(index_buffer, vk::IndexType::eUint16);
@@ -144,13 +146,13 @@ void run() {
         window.present_frame();
     }
 
-    renderer->wait_idle();
-    renderer->destroy_buffer(vertex_buffer);
-    renderer->destroy_buffer(index_buffer);
-    renderer->destroy_pipeline(pipeline);
-    renderer->destroy_descriptor_set_blueprints(descriptor_set_blueprints);
-    for (auto& shader : shaders) {
-        renderer->destroy_shader_module(shader);
+    gfxinterface->wait_idle();
+    gfxinterface->destroy_buffer(vertex_buffer);
+    gfxinterface->destroy_buffer(index_buffer);
+    gfxinterface->destroy_pipeline(pipeline);
+    gfxinterface->destroy_descriptor_set_blueprints(descriptor_set_blueprints);
+    for (auto shader : shaders) {
+        gfxinterface->destroy_shader_module(shader);
     }
 }
 

@@ -6,7 +6,7 @@
 
 #include "ember/ecs/Component.h"
 #include "ember/ecs/Storage.h"
-#include "ember/gpu/Renderer.h"
+#include "ember/gpu/GraphicsInterface.h"
 
 namespace ember::graphics {
 
@@ -21,7 +21,7 @@ namespace ember::graphics {
         std::vector<Mesh> meshes;
 
         SceneComponent() = default;
-        SceneComponent(const aiScene* scene, gpu::Renderer* renderer);
+        SceneComponent(const aiScene* scene, gpu::GraphicsInterface* renderer);
     };
 
 }

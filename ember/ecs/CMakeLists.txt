@@ -7,9 +7,10 @@ target_include_directories(ember-ecs PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE
 target_link_libraries(
     ember-ecs
     PUBLIC
-    glm-header-only
+    glm
     PRIVATE
-    ember-collections)
+    ember-collections
+)
 
 if(EMBER_TESTS)
     add_executable(ember-ecs.tests.unit

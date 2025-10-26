@@ -8,6 +8,7 @@ option(EMBER_TOOLS "Build ember tools" ON)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+set(BUILD_SHARED_LIBS OFF)
 
 add_compile_definitions(
     GLM_FORCE_RADIANS
@@ -17,7 +18,7 @@ add_compile_definitions(
 add_subdirectory(ember)
 
 if(EMBER_EXAMPLES)
-# add_subdirectory(examples)
+    add_subdirectory(examples/e1)
 endif()
 
 if(EMBER_TOOLS)
@@ -33,12 +34,13 @@ add_subdirectory(third_party/Catch2 EXCLUDE_FROM_ALL)
 set(GLM_ENABLE_CXX_20 ON)
 add_subdirectory(third_party/glm EXCLUDE_FROM_ALL)
 
-set(SDL_TEST_LIBRARY OFF)
-add_subdirectory(third_party/SDL EXCLUDE_FROM_ALL)
-
 set(SPIRV_REFLECT_EXECUTABLE OFF)
 set(SPIRV_REFLECT_STATIC_LIB ON)
 add_subdirectory(third_party/SPIRV-Reflect)
+
+set(SDL_SHARED ON)
+set(SDL_TEST_LIBRARY OFF)
+add_subdirectory(third_party/SDL EXCLUDE_FROM_ALL)
 
 add_library(stb INTERFACE)
 target_include_directories(stb INTERFACE

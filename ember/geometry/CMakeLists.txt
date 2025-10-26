@@ -7,7 +7,7 @@ target_include_directories(ember-geometry
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}
 )
-target_link_libraries(ember-geometry PUBLIC glm-header-only)
+target_link_libraries(ember-geometry PUBLIC glm)
 
 if(EMBER_TESTS)
     add_executable(ember-geometry.tests.unit tests/test_ray.cpp)
