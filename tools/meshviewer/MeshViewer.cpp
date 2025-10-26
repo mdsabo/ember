@@ -3,15 +3,15 @@
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <chrono>
+#include <glm/glm.hpp>
+#include <glm/ext/matrix_clip_space.hpp>
+#include <glm/ext/matrix_transform.hpp>
 #include <numbers>
-#include <Eigen/Dense>
 
 #include "ember/ecs/TransformComponent.h"
-#include "ember/graphics/Projections.h"
 #include "ember/util/Log.h"
 
 #define ASSET_PATH(x) (std::filesystem::path(MESHVIEWER_ASSET_PATH x))
-#define RADIANS(x) ((x) * std::numbers::pi_v<float> / 180.0)
 
 
 void MeshViewer::create_window() {
@@ -30,22 +30,24 @@ void MeshViewer::create_camera() {
     m_camera = m_world.create_entity();
 
     auto& transforms = m_world.write_component<ecs::TransformComponent>();
-    transforms.at(m_camera).transform = Eigen::Translation3f({ 0.0, -3.0, -3.0 });
+    transforms.at(m_camera).transform = glm::translate(glm::identity<glm::mat4>(), glm::vec3(1.5, 1.5, 1.5));
 
     auto& cameras = m_world.write_component<graphics::CameraComponent>();
     const auto swapchain_extent = m_window->get_swapchain_extent();
     cameras.insert(m_camera, graphics::CameraComponent{
         .focal_point = ecs::WORLD_ORIGIN_ENTITY,
-        .projection = graphics::perspective_projection(
-            RADIANS(60.0),
+        .projection = glm::infinitePerspective(
+            glm::radians(60.0f),
             float(swapchain_extent.width)/swapchain_extent.height,
-            0.1
+            0.1f
         ),
         .viewport = vk::Viewport{
             .x = 0.0,
             .y = 0.0,
             .width = float(swapchain_extent.width),
-            .height = float(swapchain_extent.height)
+            .height = float(swapchain_extent.height),
+            .minDepth = 0.0,
+            .maxDepth = 1.0
         },
     });
 }
@@ -70,6 +72,7 @@ void MeshViewer::load_scene(const char* path) {
     scenes.insert(m_scene, graphics::SceneComponent(ai_scene, m_window->get_renderer()));
 
     auto& meshes = m_world.write_component<graphics::MeshComponent>();
+    auto& transforms = m_world.write_component<ecs::TransformComponent>();
     m_meshes = std::vector<ecs::Entity>(scenes.at(m_scene).meshes.size());
     info(MESHVIEWER_LOG, "Found {} meshes in {}", m_meshes.size(), path);
     for (size_t i = 0; i < m_meshes.size(); i++) {
@@ -78,6 +81,10 @@ void MeshViewer::load_scene(const char* path) {
             .scene = m_scene,
             .mesh_id = i
         });
+
+        auto& tx = transforms.at(m_meshes[i]).transform;
+        tx = glm::rotate(tx, glm::radians(-90.0f), glm::vec3(1.0, 0.0, 0.0));
+        tx = glm::rotate(tx, glm::radians(-90.0f), glm::vec3(0.0, 0.0, 1.0));
     }
 }
 
@@ -95,22 +102,23 @@ MeshViewer::~MeshViewer() {
 
 }
 
-// void MeshViewer::update_model_mvp() {
-//     static auto last_time = std::chrono::high_resolution_clock::now();
+void MeshViewer::update_model() {
+    static auto last_time = std::chrono::high_resolution_clock::now();
 
-//     auto currentTime = std::chrono::high_resolution_clock::now();
-//     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - last_time).count();
-//     last_time = currentTime;
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - last_time).count();
+    last_time = currentTime;
 
-//     m_camera.add_rotation(Eigen::AngleAxisf(RADIANS(4.0 * time), Eigen::Vector3f::UnitX()));
-//     m_camera.add_rotation(Eigen::AngleAxisf(RADIANS(12.0 * time), Eigen::Vector3f::UnitY()));
-//     m_camera.add_rotation(Eigen::AngleAxisf(RADIANS(10.0 * time), Eigen::Vector3f::UnitZ()));
-
-//     m_camera.add_distance(25 * std::sin(RADIANS(-10.0 * time)));
-
-//     m_model_mvp.view = m_camera.view_matrix();
-//     m_renderer->write_buffer(m_uniform_buffer, m_model_mvp.model.data(), 0, sizeof(ModelViewProjection));
-// }
+    auto& transforms = m_world.write_component<ecs::TransformComponent>();
+    for (const auto mesh : m_meshes) {
+        auto& tx = transforms.at(mesh);
+        tx.transform = glm::rotate<float>(
+            tx.transform,
+            glm::radians(18.0) * time,
+            glm::vec3(0.0, 1.0, 0.0)
+        );
+    }
+}
 
 void MeshViewer::run() {
     m_window->set_visible(true);
@@ -123,7 +131,7 @@ void MeshViewer::run() {
             if (e.type == SDL_EVENT_QUIT) quit = true;
         }
 
-        // update_model_mvp();
+        //update_model();
 
         m_mesh_renderer.pre_render(m_world, m_window.get());
 

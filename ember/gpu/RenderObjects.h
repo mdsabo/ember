@@ -56,7 +56,11 @@ namespace ember::gpu {
         vk::SwapchainKHR swapchain;
         vk::Format format;
         vk::Extent2D extent;
-        // Semaphore is signaled when corresponding image is ready to present (i.e. rendering complete)
-        std::vector<std::pair<Image*, vk::Semaphore>> images;
+        struct RenderTarget {
+            Image* image;
+            Image* depth_image;
+            vk::Semaphore render_complete; // Semaphore is signaled when corresponding image is ready to present
+        };
+        std::vector<RenderTarget> render_targets;
     };
 }

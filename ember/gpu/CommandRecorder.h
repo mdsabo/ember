@@ -41,6 +41,13 @@ namespace ember::gpu {
             uint32_t first_set,
             const std::span<const vk::DescriptorSet>& descriptor_sets
         );
+        void push_constants(
+            const Pipeline* pipeline,
+            vk::ShaderStageFlagBits stages,
+            uint32_t offset,
+            uint32_t size,
+            const void* data
+        );
 
         void dispatch_compute(uint32_t x, uint32_t y, uint32_t z);
 

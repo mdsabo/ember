@@ -92,6 +92,22 @@ namespace ember::gpu {
         );
     }
 
+    void CommandRecorder::push_constants(
+        const Pipeline* pipeline,
+        vk::ShaderStageFlagBits stages,
+        uint32_t offset,
+        uint32_t size,
+        const void* data
+    ) {
+        m_command_buffer.pushConstants(
+            pipeline->layout,
+            stages,
+            offset,
+            size,
+            data
+        );
+    }
+
     void CommandRecorder::dispatch_compute(uint32_t x, uint32_t y, uint32_t z) {
         m_command_buffer.dispatch(x, y, z);
     }

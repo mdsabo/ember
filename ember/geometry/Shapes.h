@@ -1,21 +1,21 @@
 #pragma once
 
-#include <Eigen/Dense>
+#include <glm/glm.hpp>
 
 namespace ember::geometry {
 
     struct Ray {
-        Eigen::Vector3f origin;
-        Eigen::Vector3f direction;
+        glm::vec3 origin;
+        glm::vec3 direction;
     };
 
     struct AABB {
-        Eigen::Vector3f min;
-        Eigen::Vector3f max;
+        glm::vec3 min;
+        glm::vec3 max;
     };
 
     struct Sphere {
-        Eigen::Vector3f center;
+        glm::vec3 center;
         float radius;
     };
 

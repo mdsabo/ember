@@ -6,7 +6,7 @@
 namespace ember::graphics {
 
     namespace {
-        inline void ai_vector_to_eigen(Eigen::Vector3f& eigen, const aiVector3D& ai) {
+        inline void ai_vector_to_glm(glm::vec3& eigen, const aiVector3D& ai) {
             eigen[0] = ai.x;
             eigen[1] = ai.y;
             eigen[2] = ai.z;
@@ -17,8 +17,8 @@ namespace ember::graphics {
 
             for (auto v = 0; v < mesh->mNumVertices; v++) {
                 auto& vertex = vertices[v];
-                ai_vector_to_eigen(vertex.position, mesh->mVertices[v]);
-                ai_vector_to_eigen(vertex.normal, mesh->mNormals[v]);
+                ai_vector_to_glm(vertex.position, mesh->mVertices[v]);
+                ai_vector_to_glm(vertex.normal, mesh->mNormals[v]);
             }
 
             return vertices;

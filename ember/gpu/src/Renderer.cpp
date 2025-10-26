@@ -235,8 +235,8 @@ namespace ember::gpu {
             .extent = image_info.extent,
             .mipLevels = 1,
             .arrayLayers = 1,
-            .samples = vk::SampleCountFlagBits::e1,
-            .tiling = vk::ImageTiling::eLinear,
+            .samples = image_info.samples,
+            .tiling = image_info.tiling,
             .usage = image_info.usage,
             .sharingMode = vk::SharingMode::eExclusive,
             .initialLayout = vk::ImageLayout::eUndefined,
@@ -246,7 +246,9 @@ namespace ember::gpu {
         auto memory = allocate_memory(memory_requirements, image_info.memory_properties);
         m_device.bindImageMemory(image, memory, 0);
 
-        const auto view_range = MAX_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor);
+        vk::ImageAspectFlagBits aspect = vk::ImageAspectFlagBits::eColor;
+        if (image_info.format == vk::Format::eD32Sfloat) aspect = vk::ImageAspectFlagBits::eDepth;
+        const auto view_range = MAX_SUBRESOURCE_RANGE(aspect);
         const vk::ImageViewCreateInfo view_create_info {
             .image = image,
             .viewType = vk::ImageViewType::e2D, // FIXME
@@ -270,7 +272,7 @@ namespace ember::gpu {
 
         record_submit_command_buffer([&res, &image_info, &view_range](CommandRecorder& recorder) {
             const CommandRecorder::ImageTransitionInfo info {
-                .new_layout = vk::ImageLayout::eGeneral,
+                .new_layout = image_info.layout,
                 .dst_pipeline_stage = vk::PipelineStageFlagBits::eTransfer,
                 .dst_access_mask = vk::AccessFlagBits::eTransferRead,
                 .subresource_range = view_range
@@ -781,10 +783,10 @@ namespace ember::gpu {
         swapchain->swapchain = m_device.createSwapchainKHR(create_info);
 
         auto images = m_device.getSwapchainImagesKHR(swapchain->swapchain);
-        swapchain->images.resize(images.size());
+        swapchain->render_targets.resize(images.size());
 
         for (auto i = 0; i < images.size(); i++) {
-            auto& [image, semaphore] = swapchain->images[i];
+            auto& [image, depth, render_complete] = swapchain->render_targets[i];
 
             image = m_image_allocator.malloc();
             image->image = images[i];
@@ -806,7 +808,22 @@ namespace ember::gpu {
             };
             image->view = m_device.createImageView(view_create_info);
 
-            semaphore = create_semaphore();
+            depth = create_image(
+                ImageCreateInfo{
+                    .type = vk::ImageType::e2D,
+                    .format = vk::Format::eD32Sfloat, // FIXME check for format support
+                    .extent = vk::Extent3D{
+                        .width = swapchain->extent.width,
+                        .height = swapchain->extent.height,
+                        .depth = 1
+                    },
+                    .usage = vk::ImageUsageFlagBits::eDepthStencilAttachment,
+                    .layout = vk::ImageLayout::eDepthAttachmentOptimal,
+                    .memory_properties = vk::MemoryPropertyFlagBits::eDeviceLocal
+                }
+            );
+
+            render_complete = create_semaphore();
         }
 
         if (old_swapchain != nullptr) destroy_swapchain(old_swapchain);
@@ -814,10 +831,11 @@ namespace ember::gpu {
     }
 
     void Renderer::destroy_swapchain(Swapchain* swapchain) {
-        for (auto [image, semaphore] : swapchain->images) {
-            m_device.destroyImageView(image->view);
-            destroy_semaphore(semaphore);
-            m_image_allocator.free(image);
+        for (auto render_target : swapchain->render_targets) {
+            m_device.destroyImageView(render_target.image->view);
+            destroy_image(render_target.depth_image);
+            destroy_semaphore(render_target.render_complete);
+            m_image_allocator.free(render_target.image);
         }
         m_device.destroySwapchainKHR(swapchain->swapchain);
     }
@@ -838,10 +856,10 @@ namespace ember::gpu {
     }
 
     void Renderer::present_swapchain(Swapchain* swapchain, uint32_t image_index) {
-        auto& [image, render_semaphore] = swapchain->images.at(image_index);
+        auto& render_target = swapchain->render_targets.at(image_index);
         const vk::PresentInfoKHR present_info {
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &render_semaphore,
+            .pWaitSemaphores = &render_target.render_complete,
             .swapchainCount = 1,
             .pSwapchains = &swapchain->swapchain,
             .pImageIndices = &image_index

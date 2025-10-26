@@ -1,5 +1,7 @@
 #include "MeshRenderSystem.h"
 
+#include <glm/ext/matrix_transform.hpp>
+
 #include "Vertex.h"
 #include "ember/ecs/TransformComponent.h"
 
@@ -42,12 +44,13 @@ namespace ember::graphics {
 
         const auto swapchain_format = window->get_swapchain_format();
 
-        // const vk::PipelineDepthStencilStateCreateInfo depth_stencil_state {
-        //     .depthTestEnable = vk::True,
-        //     .depthWriteEnable = vk::True,
-        //     .depthCompareOp = vk::CompareOp::eLess,
-        //     .stencilTestEnable = vk::False,
-        // };
+        const vk::PipelineDepthStencilStateCreateInfo depth_stencil_state {
+            .depthTestEnable = vk::True,
+            .depthWriteEnable = vk::True,
+            .depthCompareOp = vk::CompareOp::eLessOrEqual,
+            .depthBoundsTestEnable = vk::False,
+            .stencilTestEnable = vk::False
+        };
 
         // see https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
         const Renderer::GraphicsPipelineState pipeline_state {
@@ -68,7 +71,7 @@ namespace ember::graphics {
                 .rasterizationSamples = vk::SampleCountFlagBits::e1,
                 .sampleShadingEnable = vk::False,
             },
-            // .depth_stencil_state = &depth_stencil_state,
+            .depth_stencil_state = &depth_stencil_state,
             .color_blend_state = vk::PipelineColorBlendStateCreateInfo {
                 .logicOpEnable = vk::False,
                 .attachmentCount = 1,
@@ -77,6 +80,7 @@ namespace ember::graphics {
             .rendering_info = vk::PipelineRenderingCreateInfo {
                 .colorAttachmentCount = 1,
                 .pColorAttachmentFormats = &swapchain_format,
+                .depthAttachmentFormat = vk::Format::eD32Sfloat,
             }
         };
         m_pipeline = renderer->create_graphics_pipeline(
@@ -85,9 +89,9 @@ namespace ember::graphics {
             m_descriptor_set_blueprints
         );
 
-        m_uniform_buffer = renderer->create_uniform_buffer(sizeof(Eigen::Matrix4f));
+        m_uniform_buffer = renderer->create_uniform_buffer(sizeof(glm::mat4));
         m_uniform_staging_buffer = renderer->create_buffer(
-            sizeof(Eigen::Matrix4f),
+            sizeof(glm::mat4),
             vk::BufferUsageFlagBits::eTransferSrc,
             vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent | vk::MemoryPropertyFlagBits::eHostCached
         );
@@ -101,27 +105,18 @@ namespace ember::graphics {
     }
 
     namespace {
-        Eigen::Matrix4f get_camera_vp_matrix(
+        glm::mat4 get_camera_vp_matrix(
             ecs::Entity ce,
             const CameraComponent& camera,
             const ecs::World& world
         ) {
             const auto& transforms = world.read_component<ecs::TransformComponent>();
-            const auto camera_transform = transforms.at(ce).transform;
-            const auto target_position = transforms
-                .at(camera.focal_point)
-                .transform
-                .translation();
-
-            const Eigen::Vector3f camera_pos = camera_transform.translation();
-            const auto translation = Eigen::Translation3f(-Eigen::Vector3f::UnitZ() * camera_pos.norm());
-            const auto rotation = Eigen::Quaternionf::FromTwoVectors(
-                Eigen::Vector3f::UnitZ(),
-                camera_pos - target_position
-            ).toRotationMatrix();
-
-            const auto view_matrix = Eigen::Affine3f((rotation * translation).inverse());
-            return camera.projection * view_matrix.matrix();
+            const auto eye = glm::vec3(transforms.at(ce).transform[3]);
+            const auto center = glm::vec3(transforms.at(camera.focal_point).transform[3]);
+            auto view_matrix = glm::lookAt(eye, center, CameraComponent::UP_VECTOR);
+            auto proj = camera.projection;
+            proj[1][1] *= -1;
+            return proj * view_matrix;
         }
     }
 
@@ -133,7 +128,7 @@ namespace ember::graphics {
 
         for (const auto& [ce, camera] : camera_components) {
             auto view_projection_matrix = get_camera_vp_matrix(ce, camera, world);
-            renderer->write_buffer<Eigen::Matrix4f>(m_uniform_staging_buffer, std::array{view_projection_matrix});
+            renderer->write_buffer<glm::mat4>(m_uniform_staging_buffer, std::array{view_projection_matrix});
 
             renderer->record_submit_command_buffer([this, &camera, &world](gpu::CommandRecorder& recorder) {
                 recorder.copy_buffer(m_uniform_buffer, m_uniform_staging_buffer);
@@ -153,16 +148,29 @@ namespace ember::graphics {
                 recorder.bind_descriptor_sets(m_pipeline, 0, std::array{m_ubo});
         });
 
+
+        auto mesh_entities = world.query<ecs::TransformComponent, MeshComponent>().as_set();
+
         for (const auto& [ce, camera] : camera_components) {
-            renderer->record_command_buffer(command_buffer, [this, &camera, &world](gpu::CommandRecorder& recorder) {
+            renderer->record_command_buffer(command_buffer, [&](gpu::CommandRecorder& recorder) {
                 // Setup camera details
                 recorder.set_viewport(camera.viewport);
 
                 auto& scenes = world.read_component<SceneComponent>();
                 auto& meshes = world.read_component<MeshComponent>();
+                auto& transforms = world.read_component<ecs::TransformComponent>();
 
-                for (const auto& mesh : meshes) {
+                for (const auto e : mesh_entities) {
+                    const auto& mesh = meshes.at(e);
+                    const auto& transform = transforms.at(e);
                     const auto& mesh_data = scenes.at(mesh.scene).meshes.at(mesh.mesh_id);
+                    recorder.push_constants(
+                        m_pipeline,
+                        vk::ShaderStageFlagBits::eVertex,
+                        0,
+                        sizeof(glm::mat4),
+                        &transform.transform
+                    );
                     recorder.bind_vertex_buffer(mesh_data.vertex_buffer);
                     recorder.bind_index_buffer(mesh_data.index_buffer);
                     recorder.draw_indexed(mesh_data.index_count, 1);

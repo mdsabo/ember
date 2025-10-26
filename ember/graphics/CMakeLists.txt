@@ -1,8 +1,6 @@
 add_library(ember-graphics
     STATIC
-    src/ArcballCamera.cpp
     src/MeshRenderSystem.cpp
-    src/Projections.cpp
     src/SceneComponent.cpp
     src/Window.cpp
 )
@@ -23,7 +21,7 @@ target_link_libraries(ember-graphics
     assimp
     ember-ecs
     ember-gpu
-    eigen
+    glm-header-only
 )
 
 if(EMBER_TESTS)

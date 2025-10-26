@@ -96,38 +96,54 @@ namespace ember::graphics {
         void record_begin_rendering_commands(
             Renderer* renderer,
             vk::CommandBuffer command_buffer,
-            Image* image
+            Swapchain::RenderTarget& render_target
         ) {
             renderer->record_command_buffer(command_buffer, [&](CommandRecorder& recorder) {
-                const CommandRecorder::ImageTransitionInfo info {
+                const CommandRecorder::ImageTransitionInfo color_info {
                     .new_layout = vk::ImageLayout::eColorAttachmentOptimal,
                     .src_pipeline_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput,
                     .dst_pipeline_stage = vk::PipelineStageFlagBits::eColorAttachmentOutput,
                     .dst_access_mask = vk::AccessFlagBits::eColorAttachmentWrite,
                     .subresource_range = MAX_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
                 };
-                recorder.transition_image_layout(image, info);
+                recorder.transition_image_layout(render_target.image, color_info);
 
-                const vk::RenderingAttachmentInfo attachment_info {
-                    .imageView = image->view,
-                    .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
-                    .loadOp = vk::AttachmentLoadOp::eClear,
-                    .storeOp = vk::AttachmentStoreOp::eStore,
-                    .clearValue = CLEAR_COLOR(0.0f, 0.0f, 0.2f, 0.0f),
+                const CommandRecorder::ImageTransitionInfo depth_info {
+                    .new_layout = vk::ImageLayout::eDepthAttachmentOptimal,
+                    .src_pipeline_stage = vk::PipelineStageFlagBits::eNone,
+                    .dst_pipeline_stage = vk::PipelineStageFlagBits::eEarlyFragmentTests,
+                    .dst_access_mask = vk::AccessFlagBits::eDepthStencilAttachmentRead | vk::AccessFlagBits::eDepthStencilAttachmentWrite,
+                    .subresource_range = MAX_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eDepth)
                 };
-                recorder.begin_rendering(image, std::array{attachment_info});
+                recorder.transition_image_layout(render_target.depth_image, depth_info);
 
-                recorder.set_viewport(vk::Viewport{
-                    .x = 0.0f,
-                    .y = 0.0f,
-                    .width = static_cast<float>(image->extent.width),
-                    .height = static_cast<float>(image->extent.height),
-                    .minDepth = 0.0f,
-                    .maxDepth = 1.0f
-                });
+                const std::array color_attachments = {
+                    vk::RenderingAttachmentInfo{
+                        .imageView = render_target.image->view,
+                        .imageLayout = render_target.image->layout,
+                        .loadOp = vk::AttachmentLoadOp::eClear,
+                        .storeOp = vk::AttachmentStoreOp::eStore,
+                        .clearValue = CLEAR_COLOR(0.0f, 0.0f, 0.2f, 0.0f),
+                    }
+                };
+                vk::RenderingAttachmentInfo depth_attachment{
+                    .imageView = render_target.depth_image->view,
+                    .imageLayout = render_target.depth_image->layout,
+                    .loadOp = vk::AttachmentLoadOp::eClear,
+                    .storeOp = vk::AttachmentStoreOp::eDontCare,
+                    .clearValue = vk::ClearValue{
+                        .depthStencil = vk::ClearDepthStencilValue{
+                            .depth = 1.0,
+                            //.stencil = 0
+                        }
+                    }
+                };
+                recorder.begin_rendering(render_target.image, color_attachments, &depth_attachment);
+
+                // FIXME
                 recorder.set_scissor(vk::Rect2D{
                     .offset = { 0, 0 },
-                    .extent = { image->extent.width, image->extent.height }
+                    .extent = { render_target.image->extent.width, render_target.image->extent.height }
                 });
             });
         }
@@ -152,7 +168,7 @@ namespace ember::graphics {
         record_begin_rendering_commands(
             m_renderer.get(),
             fobj.command_buffer,
-            m_swapchain->images.at(m_next_swapchain_image).first
+            m_swapchain->render_targets.at(m_next_swapchain_image)
         );
 
         return fobj.command_buffer;
@@ -162,7 +178,7 @@ namespace ember::graphics {
         void record_end_rendering_commands(
             Renderer* renderer,
             vk::CommandBuffer command_buffer,
-            Image* image
+            Swapchain::RenderTarget& render_target
         ) {
             renderer->record_command_buffer(command_buffer, [&](CommandRecorder& recorder) {
                 recorder.end_rendering();
@@ -174,18 +190,19 @@ namespace ember::graphics {
                     .src_access_mask = vk::AccessFlagBits::eColorAttachmentWrite,
                     .subresource_range = MAX_SUBRESOURCE_RANGE(vk::ImageAspectFlagBits::eColor)
                 };
-                recorder.transition_image_layout(image, info);
+                recorder.transition_image_layout(render_target.image, info);
             });
         }
     }
 
     void Window::present_frame() {
         auto& fobj = m_per_frame_objects.at(m_frame_index);
+        auto& render_target = m_swapchain->render_targets.at(m_next_swapchain_image);
 
         record_end_rendering_commands(
             m_renderer.get(),
             fobj.command_buffer,
-            m_swapchain->images.at(m_next_swapchain_image).first
+            render_target
         );
 
         m_renderer->submit_command_buffer(
@@ -195,7 +212,7 @@ namespace ember::graphics {
             std::array{
                 vk::PipelineStageFlags(vk::PipelineStageFlagBits::eColorAttachmentOutput)
             },
-            std::array{m_swapchain->images.at(m_next_swapchain_image).second}
+            std::array{render_target.render_complete}
         );
 
         m_renderer->present_swapchain(m_swapchain, m_next_swapchain_image);

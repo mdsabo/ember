@@ -10,5 +10,5 @@ TEST_CASE("Ray::origin returns the ray's origin", "[Ray]") {
         { 0.0, 0.0, 0.0 },
         { 1.0, 0.0, 0.0 },
     };
-    REQUIRE(ray.origin == Eigen::Vector3f(0.0, 0.0, 0.0));
+    REQUIRE(ray.origin == glm::vec3(0.0, 0.0, 0.0));
 }

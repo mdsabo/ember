@@ -1,5 +1,5 @@
 
-#include <Eigen/Dense>
+#include <glm/glm.hpp>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include <stb_image_write.h>
 
@@ -15,7 +15,7 @@
 using namespace ember::gpu;
 using namespace ember::util;
 
-using Vertex = Eigen::Vector2f;
+using Vertex = glm::vec2;
 
 static std::vector<Vertex> get_vertices() {
     return {

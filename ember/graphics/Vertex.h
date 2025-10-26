@@ -1,12 +1,12 @@
 #pragma once
 
-#include <Eigen/Dense>
+#include <glm/glm.hpp>
 
 namespace ember::graphics {
 
     struct Vertex {
-        Eigen::Vector3f position;
-        Eigen::Vector3f normal;
+        glm::vec3 position;
+        glm::vec3 normal;
     };
 
 }

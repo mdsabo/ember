@@ -1,13 +1,13 @@
 #pragma once
 
-#include <Eigen/Dense>
+#include <glm/glm.hpp>
 #include "Storage.h"
 
 namespace ember::ecs {
 
     struct TransformComponent {
         using Storage = VectorStorage<TransformComponent>;
-        Eigen::Affine3f transform;
+        glm::mat4 transform = glm::identity<glm::mat4>();
     };
 
 }

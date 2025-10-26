@@ -7,7 +7,7 @@ target_include_directories(ember-geometry
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}
 )
-target_link_libraries(ember-geometry PUBLIC eigen)
+target_link_libraries(ember-geometry PUBLIC glm-header-only)
 
 if(EMBER_TESTS)
     add_executable(ember-geometry.tests.unit tests/test_ray.cpp)
@@ -23,5 +23,5 @@ if(EMBER_EXAMPLES)
     #     ${CMAKE_CURRENT_SOURCE_DIR}
     #     ${CMAKE_SOURCE_DIR}
     # )
-    # target_link_libraries(ember-geometry.examples.compute-raytracer PRIVATE ember-geometry eigen stb)
+    # target_link_libraries(ember-geometry.examples.compute-raytracer PRIVATE ember-geometry glm stb)
 endif()

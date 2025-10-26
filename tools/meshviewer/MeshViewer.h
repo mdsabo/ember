@@ -2,7 +2,7 @@
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
-#include <Eigen/Dense>
+#include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 
 #include "ember/ecs/Entity.h"
@@ -33,4 +33,5 @@ private:
     void create_window();
     void load_scene(const char* scene_path);
     void create_camera();
+    void update_model();
 };

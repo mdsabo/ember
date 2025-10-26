@@ -1,14 +1,12 @@
 #include "World.h"
 
-#include <Eigen/Dense>
+#include <glm/ext/matrix_transform.hpp>
 #include "TransformComponent.h"
 
 namespace ember::ecs {
     World::World(): m_next_entity(Entity(WORLD_ORIGIN_ENTITY.id + 1)) {
         add_component<TransformComponent>();
-        write_component<TransformComponent>().insert(WORLD_ORIGIN_ENTITY, TransformComponent{
-            .transform = Eigen::Affine3f::Identity()
-        });
+        write_component<TransformComponent>().insert(WORLD_ORIGIN_ENTITY, {});
     }
 
     Entity World::create_entity() {
@@ -22,7 +20,7 @@ namespace ember::ecs {
         }
 
         auto& storage = write_component<TransformComponent>();
-        storage.insert(e, { Eigen::Affine3f::Identity() });
+        storage.insert(e, {});
         return e;
     }
 

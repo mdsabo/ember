@@ -9,6 +9,11 @@ option(EMBER_TOOLS "Build ember tools" ON)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
+add_compile_definitions(
+    GLM_FORCE_RADIANS
+    GLM_FORCE_DEPTH_ZERO_TO_ONE
+)
+
 add_subdirectory(ember)
 
 if(EMBER_EXAMPLES)
@@ -24,7 +29,9 @@ set(ASSIMP_BUILD_TESTS OFF)
 add_subdirectory(third_party/assimp EXCLUDE_FROM_ALL)
 
 add_subdirectory(third_party/Catch2 EXCLUDE_FROM_ALL)
-add_subdirectory(third_party/eigen EXCLUDE_FROM_ALL)
+
+set(GLM_ENABLE_CXX_20 ON)
+add_subdirectory(third_party/glm EXCLUDE_FROM_ALL)
 
 set(SDL_TEST_LIBRARY OFF)
 add_subdirectory(third_party/SDL EXCLUDE_FROM_ALL)

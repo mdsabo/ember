@@ -172,7 +172,9 @@ namespace ember::gpu {
             vk::Format format;
             vk::Extent3D extent;
             vk::ImageUsageFlags usage;
+            vk::ImageTiling tiling = vk::ImageTiling::eOptimal;
             vk::ImageLayout layout;
+            vk::SampleCountFlagBits samples = vk::SampleCountFlagBits::e1;
             vk::MemoryPropertyFlags memory_properties;
         };
         Image* create_image(const ImageCreateInfo& image_info);

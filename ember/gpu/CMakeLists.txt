@@ -67,7 +67,7 @@ if(EMBER_EXAMPLES)
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         target_compile_options(ember-gpu.examples.compute-raytracer PRIVATE -Wno-deprecated-declarations)
     endif()
-    target_link_libraries(ember-gpu.examples.compute-raytracer PRIVATE ember-gpu eigen stb)
+    target_link_libraries(ember-gpu.examples.compute-raytracer PRIVATE ember-gpu glm-header-only stb)
     if(WIN32)
         add_custom_command(
             TARGET ember-gpu.examples.compute-raytracer

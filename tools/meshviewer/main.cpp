@@ -13,6 +13,6 @@ int main(int argc, char* argv[]) {
     //     exit(-1);
     // };
 
-    MeshViewer("C:\\Users\\slabo\\Code\\ember\\tools\\meshviewer\\assets\\teapot.fbx").run();
+    MeshViewer("C:\\Users\\slabo\\Code\\ember\\tools\\meshviewer\\assets\\viking_room.obj").run();
     return 0;
 }

@@ -7,7 +7,7 @@ target_include_directories(ember-ecs PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE
 target_link_libraries(
     ember-ecs
     PUBLIC
-    eigen
+    glm-header-only
     PRIVATE
     ember-collections)
 
