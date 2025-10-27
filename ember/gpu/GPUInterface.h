@@ -7,7 +7,7 @@
 #include <string_view>
 
 #include "CommandRecorder.h"
-#include "GraphicsDevice.h"
+#include "GPUDevice.h"
 #include "RenderObjects.h"
 #include "SPIRV.h"
 
@@ -27,10 +27,10 @@ namespace ember::gpu {
         BufferBindInfo(const Buffer* buffer, vk::DeviceSize offset, vk::DeviceSize size): buffer(buffer), offset(offset), size(size) { }
     };
 
-    class GraphicsInterface {
+    class GPUInterface {
     public:
-        GraphicsInterface(std::shared_ptr<const GraphicsDevice> device);
-        ~GraphicsInterface();
+        GPUInterface(std::shared_ptr<const GPUDevice> device);
+        ~GPUInterface();
 
         //////////////////////////////////////////////////////////////////////////////////////////////
         // Command Buffers                                                                          //
@@ -321,12 +321,11 @@ namespace ember::gpu {
         void destroy_semaphore(vk::Semaphore semaphore);
 
     private:
-        std::shared_ptr<const GraphicsDevice> m_gpu;
+        std::shared_ptr<const GPUDevice> m_gpu;
         vk::Device m_device;
         vk::Queue m_queue;
 
         vk::CommandPool m_command_pool;
-        unsigned int m_allocated_command_buffers;
 
         template<typename T>
         using ObjectAllocator = util::SlabAllocator<T>;

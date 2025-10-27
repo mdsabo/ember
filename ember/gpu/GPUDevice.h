@@ -8,15 +8,15 @@
 
 namespace ember::gpu {
 
-    class GraphicsDevice {
+    class GPUDevice {
     public:
-        static inline std::shared_ptr<const GraphicsDevice> create(
+        static inline std::shared_ptr<const GPUDevice> create(
             std::shared_ptr<const VulkanInstance> instance,
             vk::SurfaceKHR surface = VK_NULL_HANDLE
         ) {
-            return std::shared_ptr<const GraphicsDevice>(new GraphicsDevice(instance, surface));
+            return std::shared_ptr<const GPUDevice>(new GPUDevice(instance, surface));
         }
-        ~GraphicsDevice();
+        ~GPUDevice();
 
         std::tuple<vk::Device, vk::Queue, vk::CommandPool> create_render_objects() const;
 
@@ -38,7 +38,7 @@ namespace ember::gpu {
         vk::PhysicalDeviceMemoryProperties m_memory_properties;
         uint32_t m_queue_family_index;
 
-        GraphicsDevice(std::shared_ptr<const VulkanInstance> instance, vk::SurfaceKHR surface);
+        GPUDevice(std::shared_ptr<const VulkanInstance> instance, vk::SurfaceKHR surface);
     };
 
 }

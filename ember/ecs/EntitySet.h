@@ -15,8 +15,12 @@ namespace ember::ecs {
         EntitySet(const EntitySet&) = default;
         EntitySet(EntitySet&&) = default;
 
-        inline bool operator[](Entity e) const { return m_ids[e.id]; }
-        inline bool contains(Entity e) const { return m_ids.test(e.id); }
+        inline bool operator[](Entity e) const {
+            return m_ids[e.id] && (e.generation == m_generations[e.id]);
+        }
+        inline bool contains(Entity e) const {
+            return m_ids.test(e.id) && (e.generation == m_generations.at(e.id));
+        }
 
         inline size_t size() const { return m_ids.size(); }
         inline void resize(size_t size) { m_ids.resize(size); }

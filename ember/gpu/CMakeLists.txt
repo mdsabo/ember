@@ -9,8 +9,8 @@ add_compile_definitions(
 add_library(ember-gpu
     STATIC
     src/CommandRecorder.cpp
-    src/GraphicsDevice.cpp
-    src/GraphicsInterface.cpp
+    src/GPUDevice.cpp
+    src/GPUInterface.cpp
     src/ShaderReflection.cpp
     src/SPIRV.cpp
     src/VulkanInstance.cpp

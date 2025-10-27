@@ -10,7 +10,7 @@ namespace ember::gpu {
 
     class VulkanInstance {
     public:
-        friend class GraphicsDevice;
+        friend class GPUDevice;
 
         static inline std::shared_ptr<const VulkanInstance> create(const AppInfo& app_info) {
             return std::shared_ptr<const VulkanInstance>(new VulkanInstance(app_info));

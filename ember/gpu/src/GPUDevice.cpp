@@ -1,4 +1,4 @@
-#include "GraphicsDevice.h"
+#include "GPUDevice.h"
 
 #include <algorithm>
 #include <array>
@@ -193,7 +193,7 @@ namespace ember::gpu {
         }
     } // namespace
 
-    GraphicsDevice::GraphicsDevice(std::shared_ptr<const VulkanInstance> instance, vk::SurfaceKHR surface):
+    GPUDevice::GPUDevice(std::shared_ptr<const VulkanInstance> instance, vk::SurfaceKHR surface):
         m_instance(instance)
     {
         auto [device, qfi] = select_physical_device_and_queue_family(
@@ -207,9 +207,9 @@ namespace ember::gpu {
         m_memory_properties = m_physical_device.getMemoryProperties();
     }
 
-    GraphicsDevice::~GraphicsDevice() { }
+    GPUDevice::~GPUDevice() { }
 
-    std::tuple<vk::Device, vk::Queue, vk::CommandPool> GraphicsDevice::create_render_objects() const {
+    std::tuple<vk::Device, vk::Queue, vk::CommandPool> GPUDevice::create_render_objects() const {
         constexpr std::array QUEUE_PRIORTIES = { 1.0f };
         const vk::DeviceQueueCreateInfo queue_create_info{
             .queueFamilyIndex = m_queue_family_index,
@@ -291,7 +291,7 @@ namespace ember::gpu {
         }
     }
 
-    vk::SwapchainCreateInfoKHR GraphicsDevice::get_swapchain_create_info_for_surface(
+    vk::SwapchainCreateInfoKHR GPUDevice::get_swapchain_create_info_for_surface(
         vk::SurfaceKHR surface,
         vk::Extent2D window_extent,
         vk::SwapchainKHR old_swapchain

@@ -1,4 +1,4 @@
-#include "GraphicsInterface.h"
+#include "GPUInterface.h"
 #include "ember/util/ArgParser.h"
 #include "ember/util/Log.h"
 
@@ -20,8 +20,8 @@ int main(int argc, const char* argv[]) {
     };
 
     auto instance = VulkanInstance::create(app_info);
-    auto device = GraphicsDevice::create(instance);
-    auto gfxinterface = GraphicsInterface(device);
+    auto device = GPUDevice::create(instance);
+    auto gfxinterface = GPUInterface(device);
 
     constexpr auto NUM_ELEMENTS = 64;
     constexpr auto BUFFER_SIZE = sizeof(uint32_t)*NUM_ELEMENTS;

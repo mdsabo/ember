@@ -8,7 +8,7 @@ add_library(ember-graphics
     STATIC
     src/MeshRenderSystem.cpp
     src/Renderer.cpp
-    src/SceneComponent.cpp
+    src/Renderpass.cpp
     src/Window.cpp
 )
 target_include_directories(ember-graphics

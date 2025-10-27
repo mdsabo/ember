@@ -30,7 +30,7 @@ void MeshViewer::create_window() {
             .flags = SDL_WINDOW_HIDDEN
         }
     );
-    m_graphics_device = gpu::GraphicsDevice::create(m_vkinstance, window->surface());
+    m_graphics_device = gpu::GPUDevice::create(m_vkinstance, window->surface());
     m_renderer = std::make_unique<graphics::Renderer>(m_graphics_device, std::move(window));
 }
 

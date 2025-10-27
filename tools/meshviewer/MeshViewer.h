@@ -21,7 +21,7 @@ public:
 
 private:
     std::shared_ptr<const gpu::VulkanInstance> m_vkinstance;
-    std::shared_ptr<const gpu::GraphicsDevice> m_graphics_device;
+    std::shared_ptr<const gpu::GPUDevice> m_graphics_device;
     std::unique_ptr<graphics::Renderer> m_renderer;
     ecs::World m_world;
     graphics::MeshRenderSystem m_mesh_renderer;

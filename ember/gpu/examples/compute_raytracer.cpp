@@ -7,7 +7,7 @@
 #include <fstream>
 #include <vector>
 
-#include "GraphicsInterface.h"
+#include "GPUInterface.h"
 #include "VulkanHelpers.h"
 #include "ember/util/ArgParser.h"
 #include "ember/util/Log.h"
@@ -41,8 +41,8 @@ int main(int argc, const char* argv[]) {
     };
 
     auto instance = VulkanInstance::create(app_info);
-    auto device = GraphicsDevice::create(instance);
-    auto gfxinterface = GraphicsInterface(device);
+    auto device = GPUDevice::create(instance);
+    auto gfxinterface = GPUInterface(device);
 
     auto vertices = get_vertices();
     const auto vertex_buffer_size = sizeof(Vertex)*vertices.size();
@@ -62,7 +62,7 @@ int main(int argc, const char* argv[]) {
 
     constexpr auto IMAGE_DIM_X = 1024;
     constexpr auto IMAGE_DIM_Y = 768;
-    auto output_image = gfxinterface.create_image(GraphicsInterface::ImageCreateInfo {
+    auto output_image = gfxinterface.create_image(GPUInterface::ImageCreateInfo {
         .type = vk::ImageType::e2D,
         .format = vk::Format::eR8G8B8A8Uint,
         .extent = vk::Extent3D{ .width = IMAGE_DIM_X, .height = IMAGE_DIM_Y, .depth = 1 },

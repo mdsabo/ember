@@ -5,8 +5,8 @@
 #include <vulkan/vulkan.hpp>
 
 #include "ember/gpu/VulkanInstance.h"
-#include "ember/gpu/GraphicsDevice.h"
-#include "ember/gpu/GraphicsInterface.h"
+#include "ember/gpu/GPUDevice.h"
+#include "ember/gpu/GPUInterface.h"
 
 namespace ember::graphics {
 
@@ -43,7 +43,7 @@ namespace ember::graphics {
         void set_visible(bool visible);
         void set_fullscreen(bool fullscreen);
 
-        // gpu::GraphicsInterface* create_renderer(std::shared_ptr<const gpu::GraphicsDevice> graphics_device);
+        // gpu::GraphicsInterface* create_renderer(std::shared_ptr<const gpu::GPUDevice> graphics_device);
         // gpu::GraphicsInterface* get_renderer() { return m_renderer.get(); }
 
         // vk::CommandBuffer& begin_rendering_frame();

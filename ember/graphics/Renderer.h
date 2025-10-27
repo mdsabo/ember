@@ -2,15 +2,22 @@
 
 #include <array>
 
-#include "ember/gpu/GraphicsInterface.h"
+#include "Mesh.h"
+#include "Renderpass.h"
 #include "Window.h"
+
+#include "ember/ecs/System.h"
+#include "ember/gpu/GPUInterface.h"
+#include "ember/util/ResourceManager.h"
 
 namespace ember::graphics {
 
     class Renderer {
     public:
+        static void init(ecs::World& world);
+
         Renderer(
-            std::shared_ptr<const gpu::GraphicsDevice> gfx_device,
+            std::shared_ptr<const gpu::GPUDevice> gpu_device,
             std::unique_ptr<Window> window
         );
         ~Renderer();
@@ -18,40 +25,20 @@ namespace ember::graphics {
         inline Window* window() { return m_window.get(); }
         inline const Window* window() const { return m_window.get(); }
 
-        inline vk::Extent2D get_swapchain_extent() const {
-            if (m_swapchain) return m_swapchain->extent;
-            else return {};
-        }
+        void render(ecs::World& world);
 
-        vk::CommandBuffer begin_rendering();
-        void end_rendering();
-        void present_frame();
-
-        inline gpu::GraphicsInterface* get_renderer() const { return m_gfx_interface.get(); }
-        inline vk::Format get_swapchain_format() const {
-            if (m_swapchain) return m_swapchain->format;
-            else return vk::Format::eUndefined;
-        }
-        inline vk::CommandBuffer& get_active_command_buffer() {
-            return m_per_frame_objects[m_frame_index].command_buffer;
-        }
+        // Draw Commands
+        void draw_mesh(uint64_t mesh_id, const glm::mat4& transform);
 
     private:
-        static constexpr auto MAX_CONCURRENT_FRAMES = 3;
-
-        std::shared_ptr<const gpu::GraphicsDevice> m_gfx_device;
-        std::unique_ptr<gpu::GraphicsInterface> m_gfx_interface;
-
+        std::shared_ptr<const gpu::GPUDevice> m_gpu_device;
+        std::unique_ptr<gpu::GPUInterface> m_gpu_interface;
         std::unique_ptr<Window> m_window;
-        gpu::Swapchain* m_swapchain;
-        struct PerFrameObjects {
-            vk::CommandBuffer command_buffer;
-            vk::Fence wait_fence;
-            vk::Semaphore present_complete_semaphore;
-        };
-        std::array<PerFrameObjects, MAX_CONCURRENT_FRAMES> m_per_frame_objects;
-        size_t m_frame_index;
-        uint32_t m_next_swapchain_image;
+
+        std::vector<std::unique_ptr<Renderpass>> m_renderpasses;
+        Renderpass::RenderpassObjects m_renderpass_objects;
+        util::ResourceManager<Mesh> m_mesh_manager;
     };
+    static_assert(ecs::System<Renderer>);
 
 }

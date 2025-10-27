@@ -9,7 +9,7 @@
 #include <string>
 #include <string_view>
 
-#include "ember/gpu/GraphicsInterface.h"
+#include "ember/gpu/GPUInterface.h"
 #include "ember/gpu/VulkanHelpers.h"
 #include "ember/util/Log.h"
 #include "Window.h"
@@ -32,7 +32,7 @@ void run() {
         }
     });
     auto window = Window(vkinstance, "SDL Playground", 800, 600);
-    auto graphics_device = GraphicsDevice::create(vkinstance, window.surface());
+    auto graphics_device = GPUDevice::create(vkinstance, window.surface());
     auto gfxinterface = window.create_renderer(graphics_device);
 
     auto vertex_shader_path = std::filesystem::path(EMBER_GRAPHICS_DIR)
@@ -47,9 +47,9 @@ void run() {
 
     auto descriptor_set_blueprints = gfxinterface->create_descriptor_set_blueprints(shaders);
 
-    const std::array<GraphicsInterface::ShaderStageInfo, 2> shader_stages {
-        GraphicsInterface::ShaderStageInfo{ .module = shaders[0] },
-        GraphicsInterface::ShaderStageInfo{ .module = shaders[1] }
+    const std::array<GPUInterface::ShaderStageInfo, 2> shader_stages {
+        GPUInterface::ShaderStageInfo{ .module = shaders[0] },
+        GPUInterface::ShaderStageInfo{ .module = shaders[1] }
     };
     const std::array vertex_bindings{
         vk::VertexInputBindingDescription {
@@ -69,7 +69,7 @@ void run() {
     const auto swapchain_format = window.get_swapchain_format();
 
     // see https://vulkan-tutorial.com/Drawing_a_triangle/Graphics_pipeline_basics/Fixed_functions
-    const GraphicsInterface::GraphicsPipelineState pipeline_state {
+    const GPUInterface::GraphicsPipelineState pipeline_state {
         .vertex_bindings = vertex_bindings,
         .input_assembly_state = vk::PipelineInputAssemblyStateCreateInfo {
             .topology = vk::PrimitiveTopology::eTriangleList,
