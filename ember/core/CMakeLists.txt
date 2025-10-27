@@ -9,6 +9,7 @@ add_library(ember-core
 target_link_libraries(ember-core
     PUBLIC
     ember-ecs
+    ember-graphics
     PRIVATE
     ember-util
 )
