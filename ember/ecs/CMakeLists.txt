@@ -1,6 +1,7 @@
 add_library(ember-ecs
     STATIC
     src/EntitySet.cpp
+    src/SystemGraph.cpp
     src/World.cpp
 )
 target_include_directories(ember-ecs PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_SOURCE_DIR})
@@ -16,6 +17,7 @@ if(EMBER_TESTS)
     add_executable(ember-ecs.tests.unit
         tests/test_entity_set.cpp
         tests/test_storage.cpp
+        tests/test_system_graph.cpp
         tests/test_world.cpp
     )
     target_include_directories(ember-ecs.tests.unit

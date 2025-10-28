@@ -44,9 +44,12 @@ namespace ember::ecs {
         }
 
     private:
-        std::unordered_map<std::type_index, std::any> m_components;
         Entity m_next_entity;
         std::queue<Entity> m_recycled_entities;
+
+        std::unordered_map<std::type_index, std::any> m_components;
+
+        //SystemGraph systems;
     };
 
 }

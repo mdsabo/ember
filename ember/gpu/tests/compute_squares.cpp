@@ -75,6 +75,8 @@ int main(int argc, const char* argv[]) {
         recorder.copy_buffer(dst_host_buffer, dst_gpu_buffer);
     });
 
+    gfxinterface.wait_idle();
+
     std::vector<uint32_t> squared(NUM_ELEMENTS);
     gfxinterface.read_buffer(squared.data(), dst_host_buffer, 0, BUFFER_SIZE);
 

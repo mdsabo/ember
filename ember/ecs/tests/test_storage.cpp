@@ -97,3 +97,11 @@ TEST_CASE("MapStorage::begin/end() allow iteration over the components", "[Stora
     }
 }
 
+TEST_CASE("SingletonStorage::get() returns singleton instance", "[Storage]") {
+    SingletonStorage<int> storage;
+    *storage.get() = 5;
+
+    const auto& const_storage = storage;
+    REQUIRE(*const_storage.get() == 5);
+}
+

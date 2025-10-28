@@ -15,6 +15,7 @@ namespace ember::graphics {
     class Renderer {
     public:
         static void init(ecs::World& world);
+        static void run(ecs::World& world, float dt);
 
         Renderer(
             std::shared_ptr<const gpu::GPUDevice> gpu_device,
