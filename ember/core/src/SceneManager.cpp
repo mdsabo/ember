@@ -44,13 +44,4 @@ namespace ember::core {
         enter_current_scene();
     }
 
-    void SceneManager::update(float dt) {
-        if (current_scene()) current_scene()->update(dt);
-    }
-
-    void SceneManager::render() {
-        if (current_scene()) current_scene()->render();
-    }
-
-
 }

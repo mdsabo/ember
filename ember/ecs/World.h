@@ -25,26 +25,45 @@ namespace ember::ecs {
         void destroy_entity(Entity e);
 
         template<Component T>
-        void add_component() {
-            const auto index = std::type_index(typeid(T));
-            m_components.insert({ index, std::any(typename T::Storage()) });
-        }
+        void add_component() { add_resource<typename T::Storage>(); }
 
         template<Component T>
         const typename T::Storage& read_component() const {
-            const auto index = std::type_index(typeid(T));
-            return std::any_cast<const typename T::Storage&>(m_components.at(index));
+            return read_resource<typename T::Storage>();
         }
 
         template<Component T>
         typename T::Storage& write_component() {
-            const auto index = std::type_index(typeid(T));
-            return std::any_cast<typename T::Storage&>(m_components.at(index));
+            return write_resource<typename T::Storage>();
         }
 
         template<Component... T>
         EntitySet query() {
             return (read_component<T>().entities() & ...);
+        }
+
+        template<typename T>
+        void add_resource() {
+            const auto index = std::type_index(typeid(T));
+            m_components.insert({ index, std::any(T()) });
+        }
+
+        template<typename T>
+        void add_resource(const T& resource) {
+            const auto index = std::type_index(typeid(T));
+            m_components.insert({ index, std::any(T(resource)) });
+        }
+
+        template<typename T>
+        const T& read_resource() const {
+            const auto index = std::type_index(typeid(T));
+            return std::any_cast<const T&>(m_components.at(index));
+        }
+
+        template<typename T>
+        typename T& write_resource() {
+            const auto index = std::type_index(typeid(T));
+            return std::any_cast<T&>(m_components.at(index));
         }
 
     private:

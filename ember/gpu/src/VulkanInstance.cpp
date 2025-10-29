@@ -163,19 +163,19 @@ namespace ember::gpu {
 
     VulkanInstance::VulkanInstance(const AppInfo& app_info) {
         initialize_SDL();
-        m_instance = create_instance(app_info);
-        m_debug_messenger = create_debug_messenger(m_instance);
+        m_vkinstance = create_instance(app_info);
+        m_debug_messenger = create_debug_messenger(m_vkinstance);
     }
 
     VulkanInstance::~VulkanInstance() {
-        m_instance.destroyDebugUtilsMessengerEXT(m_debug_messenger);
-        m_instance.destroy();
+        m_vkinstance.destroyDebugUtilsMessengerEXT(m_debug_messenger);
+        m_vkinstance.destroy();
         SDL_Vulkan_UnloadLibrary();
     }
 
     vk::SurfaceKHR VulkanInstance::create_window_surface(SDL_Window* window) const {
         VkSurfaceKHR surface;
-        if (!SDL_Vulkan_CreateSurface(window, m_instance, nullptr, &surface)) {
+        if (!SDL_Vulkan_CreateSurface(window, m_vkinstance, nullptr, &surface)) {
             error(EMBER_GPU_LOG, "Failed to create surface : {}", SDL_GetError());
             throw std::runtime_error("Failed to create surface!");
         }
@@ -183,7 +183,7 @@ namespace ember::gpu {
     }
 
     void VulkanInstance::destroy_window_surface(vk::SurfaceKHR surface) const {
-        SDL_Vulkan_DestroySurface(m_instance, surface, nullptr);
+        SDL_Vulkan_DestroySurface(m_vkinstance, surface, nullptr);
     }
 
 }

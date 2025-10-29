@@ -1,5 +1,6 @@
 add_library(ember-util
     STATIC
+    src/Allocators.cpp
     src/ArgParser.cpp
     src/Filesystem.cpp
     src/Log.cpp

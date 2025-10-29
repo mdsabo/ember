@@ -14,11 +14,7 @@ int main(int argc, char* argv[]) {
 
     const AppInfo app_info {
         .app_name = "e1",
-        .version = 0,
-        .window = {
-            .width = 1920,
-            .height = 1080,
-        }
+        .version = 0
     };
     auto ember = Ember(argc, argv, app_info, std::make_unique<SceneE1>());
     return ember.run();

@@ -11,6 +11,7 @@ add_library(ember-gpu
     src/CommandRecorder.cpp
     src/GPUDevice.cpp
     src/GPUInterface.cpp
+    src/GPUResource.cpp
     src/ShaderReflection.cpp
     src/SPIRV.cpp
     src/VulkanInstance.cpp

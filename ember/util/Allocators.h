@@ -93,4 +93,31 @@ namespace ember::util {
         }
     };
 
+    class StackAllocator {
+    public:
+        StackAllocator(size_t bytes);
+        ~StackAllocator();
+
+        [[nodiscard]] void* malloc(size_t size);
+
+        template<typename T>
+        [[nodiscard]] T* malloc(size_t count) {
+            return reinterpret_cast<T*>(malloc(sizeof(T) * count));
+        }
+
+        void reset();
+
+        inline size_t max_size() { return m_max_size; }
+
+    private:
+        std::unique_ptr<uint8_t[]> m_memory;
+        size_t m_top;
+        size_t m_size;
+        size_t m_max_size;
+
+#if !defined(EMBER_STACK_ALLOCATOR_ASSERT_ON_OVERFLOW)
+        std::vector<void*> m_overflow;
+#endif
+    };
+
 }

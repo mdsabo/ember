@@ -13,11 +13,6 @@ namespace ember::core {
 
         virtual void on_enter() {}
         virtual void on_exit() {}
-
-        virtual void update(float dt) {}
-        virtual void render() {}
-        virtual void render_ui() {}
-
     private:
         ecs::World m_world;
     };

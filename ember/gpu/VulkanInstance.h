@@ -21,11 +21,10 @@ namespace ember::gpu {
         void destroy_window_surface(vk::SurfaceKHR surface) const;
 
     private:
-        vk::Instance m_instance;
+        vk::Instance m_vkinstance;
         vk::DebugUtilsMessengerEXT m_debug_messenger;
 
         VulkanInstance(const AppInfo& app_info);
-        inline vk::Instance instance() const { return m_instance; }
+        inline vk::Instance instance() const { return m_vkinstance; }
     };
-
 }
