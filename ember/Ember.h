@@ -30,7 +30,7 @@ namespace ember {
     private:
         int m_argc;
         const char* const* m_argv;
-        std::chrono::high_resolution_clock::time_point m_last_fixed_update;
+        std::chrono::high_resolution_clock::time_point m_last_world_update;
 
         std::shared_ptr<const gpu::VulkanInstance> m_vulkan;
         std::shared_ptr<const gpu::GPUDevice> m_gpu;
@@ -39,10 +39,6 @@ namespace ember {
         core::SceneManager m_scene_manager;
 
         void create_graphics_objects(const AppInfo& app_info);
-
-        bool process_events();
-        void fixed_update();
-        void render();
     };
 
 }

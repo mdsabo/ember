@@ -2,9 +2,9 @@
 
 #include <concepts>
 
-#include "World.h"
-
 namespace ember::ecs {
+
+    class World;
 
     template<typename T>
     concept System = requires(World& world, float dt) {

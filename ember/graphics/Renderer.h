@@ -7,6 +7,7 @@
 #include "Window.h"
 
 #include "ember/ecs/System.h"
+#include "ember/ecs/World.h"
 #include "ember/gpu/GPUInterface.h"
 #include "ember/util/ResourceManager.h"
 

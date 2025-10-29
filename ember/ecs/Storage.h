@@ -219,10 +219,14 @@ namespace ember::ecs {
         using iterator = std::nullptr_t;
         using const_iterator = std::nullptr_t;
 
-        SingletonStorage(): m_singleton(std::make_unique<T>()) { }
+        SingletonStorage(): m_singleton() { }
 
-        inline const T* get() const { return m_singleton.get(); }
-        inline T* get() { return m_singleton.get(); }
+        inline const T& instance() const {
+            return m_singleton;
+        }
+        inline T& instance() {
+            return m_singleton;
+        }
 
         inline bool contains(Entity e) const {
             assert(0 && "Attempted to get entity set of singleton component");
@@ -261,7 +265,7 @@ namespace ember::ecs {
             assert(0 && "Attempted to create iterator over singleton component");
         }
     private:
-        std::unique_ptr<T> m_singleton;
+        T m_singleton;
     };
     static_assert(ComponentStorage<SingletonStorage<int>>);
 

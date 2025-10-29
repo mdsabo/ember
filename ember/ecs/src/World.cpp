@@ -9,6 +9,18 @@ namespace ember::ecs {
         write_component<TransformComponent>().insert(WORLD_ORIGIN_ENTITY, {});
     }
 
+    World::World(const SystemGraph& systems): World() {
+        m_systems = systems;
+    }
+
+    void World::run(float dt) {
+        for (const auto& phase : m_systems) {
+            for (const auto sys : phase) {
+                sys(*this, dt);
+            }
+        }
+    }
+
     Entity World::create_entity() {
         Entity e;
         if (!m_recycled_entities.empty()) {

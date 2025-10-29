@@ -1,6 +1,8 @@
 #pragma once
 
 #include <map>
+#include <set>
+#include <vector>
 
 #include "System.h"
 
@@ -11,13 +13,13 @@ namespace ember::ecs {
     class SystemGraphBuilder {
     public:
         template<System S>
-        inline void add_system() {
+        void add_system() {
             m_systems.insert(S::run);
             m_dependencies.insert({ S::run, {} });
         }
 
         template<System Src, System Dst>
-        inline void order_systems() {
+        void order_systems() {
             add_system<Src>();
             add_system<Dst>();
             m_dependencies.at(Dst::run).insert(Src::run);

@@ -10,12 +10,16 @@
 #include "Component.h"
 #include "Entity.h"
 #include "EntitySet.h"
+#include "SystemGraph.h"
 
 namespace ember::ecs {
 
     class World {
     public:
         World();
+        World(const SystemGraph& systems);
+
+        void run(float dt);
 
         Entity create_entity();
         void destroy_entity(Entity e);
@@ -49,7 +53,7 @@ namespace ember::ecs {
 
         std::unordered_map<std::type_index, std::any> m_components;
 
-        //SystemGraph systems;
+        SystemGraph m_systems;
     };
 
 }
