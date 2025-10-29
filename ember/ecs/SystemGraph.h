@@ -1,8 +1,6 @@
 #pragma once
 
 #include <map>
-#include <set>
-#include <vector>
 
 #include "System.h"
 
@@ -14,24 +12,22 @@ namespace ember::ecs {
     public:
         template<System S>
         inline void add_system() {
-            m_nodes.insert(S::run);
-            if (!m_edges.contains(S::run)) m_edges.insert({ S::run, {} });
+            m_systems.insert(S::run);
+            m_dependencies.insert({ S::run, {} });
         }
 
         template<System Src, System Dst>
         inline void order_systems() {
-            if (m_edges.contains(Dst::run)) {
-                m_edges.at(Dst::run).insert(Src::run);
-            } else {
-                m_edges.insert({ Dst::run, {Src::run} });
-            }
+            add_system<Src>();
+            add_system<Dst>();
+            m_dependencies.at(Dst::run).insert(Src::run);
         }
 
         SystemGraph build();
 
     private:
-        std::set<SystemRunFn> m_nodes;
-        std::map<SystemRunFn, std::set<SystemRunFn>> m_edges;
+        std::set<SystemRunFn> m_systems;
+        std::map<SystemRunFn, std::set<SystemRunFn>> m_dependencies;
     };
 
 }
