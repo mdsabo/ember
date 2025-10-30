@@ -2,11 +2,12 @@
 
 #include <array>
 #include <bitset>
+#include <cassert>
 #include <cstdlib>
+#include <forward_list>
 #include <memory>
+#include <stdexcept>
 #include <vector>
-
-#include <cstdio>
 
 namespace ember::util {
 

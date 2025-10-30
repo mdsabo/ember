@@ -9,6 +9,7 @@ add_subdirectory(ecs)
 add_subdirectory(geometry)
 add_subdirectory(gpu)
 add_subdirectory(graphics)
+add_subdirectory(physics)
 add_subdirectory(util)
 
 add_library(ember

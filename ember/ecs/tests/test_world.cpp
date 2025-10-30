@@ -12,7 +12,7 @@ struct TestComponent {
 static_assert(Component<TestComponent>);
 
 struct TestComponent2 {
-    using Storage = DenseVectorStorage<TestComponent>;
+    using Storage = DenseVectorStorage<TestComponent2>;
     int value;
 };
 static_assert(Component<TestComponent2>);

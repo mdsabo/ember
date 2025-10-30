@@ -49,9 +49,9 @@ namespace ember::ecs {
         }
 
         template<typename T>
-        void add_resource(const T& resource) {
+        void add_resource(T resource) {
             const auto index = std::type_index(typeid(T));
-            m_components.insert({ index, std::any(T(resource)) });
+            m_components.insert({ index, std::any(resource) });
         }
 
         template<typename T>
@@ -61,7 +61,7 @@ namespace ember::ecs {
         }
 
         template<typename T>
-        typename T& write_resource() {
+        T& write_resource() {
             const auto index = std::type_index(typeid(T));
             return std::any_cast<T&>(m_components.at(index));
         }
