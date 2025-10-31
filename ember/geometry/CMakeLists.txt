@@ -1,6 +1,6 @@
 add_library(ember-geometry
     STATIC
-    src/IntersectionTests.cpp
+    src/Intersect.cpp
 )
 target_include_directories(ember-geometry
     PRIVATE
@@ -10,7 +10,10 @@ target_include_directories(ember-geometry
 target_link_libraries(ember-geometry PUBLIC glm)
 
 if(EMBER_TESTS)
-    add_executable(ember-geometry.tests.unit tests/test_ray.cpp)
+    add_executable(ember-geometry.tests.unit
+        tests/test_intersect.cpp
+        tests/test_ray.cpp
+    )
     target_include_directories(ember-geometry.tests.unit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(ember-geometry.tests.unit PRIVATE ember-geometry Catch2::Catch2WithMain)
     add_test(NAME ember-geometry.tests.unit COMMAND $<TARGET_FILE:ember-geometry.tests.unit>)
