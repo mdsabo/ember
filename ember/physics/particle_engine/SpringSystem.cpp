@@ -32,8 +32,8 @@ namespace ember::physics {
 
             const auto force = spring.k * spring_distance * (diff / distance);
 
-            particles.at(spring.e1).applied_impulses += force;
-            particles.at(spring.e2).applied_impulses -= force;
+            particles.at(spring.e1).applied_forces += force;
+            particles.at(spring.e2).applied_forces -= force;
         }
     }
 }

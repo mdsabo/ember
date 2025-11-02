@@ -108,6 +108,37 @@ TEST_CASE("EntitySet::resize() intializes entities to false", "[EntitySet]") {
     REQUIRE_FALSE(set[100]);
 }
 
+TEST_CASE("EntitySet::begin/end allow iterator over entity set", "[EntitySet]") {
+    auto set_a = EntitySet(1024);
+    set_a.insert(1);
+    set_a.insert(23);
+    set_a.insert(456);
+
+    std::vector<Entity> entities;
+    for (const auto e : set_a) {
+        entities.push_back(e);
+    }
+
+    REQUIRE(entities.size() == 3);
+    REQUIRE(entities.at(0) == 1);
+    REQUIRE(entities.at(1) == 23);
+    REQUIRE(entities.at(2) == 456);
+}
+
+TEST_CASE("EntitySet::as_vec returns contains entities as vector", "[EntitySet]") {
+    auto set_a = EntitySet(1024);
+    set_a.insert(1);
+    set_a.insert(23);
+    set_a.insert(456);
+
+    std::vector<Entity> entities = set_a.as_vec();
+
+    REQUIRE(entities.size() == 3);
+    REQUIRE(entities.at(0) == 1);
+    REQUIRE(entities.at(1) == 23);
+    REQUIRE(entities.at(2) == 456);
+}
+
 TEST_CASE("EntitySet::operator&= computes intersection of two sets", "[EntitySet]") {
     auto set_a = EntitySet(1024);
     set_a.insert(1);
@@ -140,35 +171,6 @@ TEST_CASE("EntitySet::operator& computes intersection of two sets", "[EntitySet]
     REQUIRE(res[1]);
     REQUIRE_FALSE(res[23]);
     REQUIRE_FALSE(res[456]);
-}
-
-
-TEST_CASE("EntitySet::as_set() converts entity set into std::set<Entity>", "[EntitySet]") {
-    auto set = EntitySet(1024);
-    set.insert(1);
-    set.insert(23);
-    set.insert(456);
-
-    auto std_set = set.as_set();
-    REQUIRE_FALSE(std_set.contains(0));
-    REQUIRE(std_set.contains(1));
-    REQUIRE(std_set.contains(23));
-    REQUIRE(std_set.contains(456));
-    REQUIRE_FALSE(std_set.contains(500));
-}
-
-TEST_CASE("EntitySet::as_unordered_set() converts entity set into std::unordered_set<Entity>", "[EntitySet]") {
-    auto set = EntitySet(1024);
-    set.insert(1);
-    set.insert(23);
-    set.insert(456);
-
-    auto std_set = set.as_unordered_set();
-    REQUIRE_FALSE(std_set.contains(0));
-    REQUIRE(std_set.contains(1));
-    REQUIRE(std_set.contains(23));
-    REQUIRE(std_set.contains(456));
-    REQUIRE_FALSE(std_set.contains(500));
 }
 
 TEST_CASE("EntitySet benchmarks", "[EntitySet]") {

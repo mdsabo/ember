@@ -7,11 +7,16 @@ target_include_directories(ember-geometry
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_SOURCE_DIR}
 )
-target_link_libraries(ember-geometry PUBLIC glm)
+target_link_libraries(ember-geometry
+    PUBLIC
+    ember-util
+    glm
+)
 
 if(EMBER_TESTS)
     add_executable(ember-geometry.tests.unit
         tests/test_intersect.cpp
+        tests/test_oct_tree.cpp
         tests/test_ray.cpp
     )
     target_include_directories(ember-geometry.tests.unit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

@@ -17,7 +17,7 @@ namespace ember::physics {
         glm::vec3 acceleration;
         float damping = 1.0f;
 
-        glm::vec3 applied_impulses;
+        glm::vec3 applied_forces;
     };
     static_assert(ecs::Component<ParticleComponent>);
 }

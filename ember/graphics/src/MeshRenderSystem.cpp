@@ -105,13 +105,13 @@ namespace ember::graphics {
     void MeshRenderSystem::render(ecs::World& world, Renderer& renderer) {
         auto& transforms = world.read_component<ecs::TransformComponent>();
         auto& mesh_components = world.read_component<MeshComponent>();
-        auto entities = mesh_components.entities().as_set();
+        // auto entities = mesh_components.entities().as_set();
 
-        for (const auto e : entities) {
-            const auto& mesh = mesh_components.at(e);
-            const auto& transform = transforms.at(e).transform;
+        // for (const auto e : entities) {
+        //     const auto& mesh = mesh_components.at(e);
+        //     const auto& transform = transforms.at(e).transform;
 
-        }
+        // }
 
         // for (const auto& [ce, camera] : camera_components) {
         //     gfxinterface->record_command_buffer(command_buffer, [&](gpu::CommandRecorder& recorder) {

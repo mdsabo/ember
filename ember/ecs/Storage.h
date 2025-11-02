@@ -22,6 +22,7 @@ namespace ember::ecs {
         { const_s.begin() } -> std::same_as<typename T::const_iterator>;
         { const_s.end() } -> std::same_as<typename T::const_iterator>;
         { const_s.entities() } -> std::same_as<const EntitySet&>;
+        { const_s.size() } -> std::convertible_to<size_t>;
 
         s.insert(e, c);
         s.remove(e);
@@ -80,6 +81,8 @@ namespace ember::ecs {
         iterator end() {
             return m_components.end();
         }
+
+        inline size_t size() const { m_valid.size(); }
 
     private:
         std::vector<T> m_components;
@@ -152,6 +155,8 @@ namespace ember::ecs {
             return m_components.end();
         }
 
+        inline size_t size() const { m_id_map.size(); }
+
     private:
         VectorStorage<size_t> m_id_map;
         std::vector<T> m_components;
@@ -205,6 +210,8 @@ namespace ember::ecs {
         iterator end() {
             return m_components.end();
         }
+
+        inline size_t size() const { m_valid.size(); }
 
     private:
         std::map<Entity, T> m_components;

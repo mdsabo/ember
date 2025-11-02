@@ -4,6 +4,7 @@
 
 #include "ParticleComponent.h"
 #include "ember/ecs/World.h"
+#include "ember/geometry/Intersect.h"
 
 namespace ember::physics {
     void ParticleSystem::init(ecs::World& world) {
@@ -16,8 +17,8 @@ namespace ember::physics {
 
             particle.position += particle.velocity * dt;
 
-            particle.acceleration += particle.applied_impulses * particle.inverse_mass;
-            particle.applied_impulses = glm::vec3();
+            particle.acceleration += particle.applied_forces * particle.inverse_mass;
+            particle.applied_forces = glm::vec3();
 
             // There's a bit of an error in the book here it would appear.
             // It states velocity should be v' = v*(damping^dt) + a*t

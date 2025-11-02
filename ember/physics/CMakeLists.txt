@@ -1,7 +1,9 @@
 add_library(ember-physics
     STATIC
-    src/ParticleSystem.cpp
-    src/SpringSystem.cpp
+    src/ColliderComponent.cpp
+    src/CollisionSystem.cpp
+    src/RigidBodyComponent.cpp
+    src/RigidBodySystem.cpp
 )
 target_include_directories(ember-physics
     PRIVATE
@@ -12,12 +14,14 @@ target_link_libraries(ember-physics
     PUBLIC
     ember-ecs
     glm
+    PRIVATE
+    ember-geometry
+    ember-util
 )
 
 if(EMBER_TESTS)
     add_executable(ember-physics.tests.unit
-        tests/test_particle_system.cpp
-        tests/test_spring_system.cpp
+        tests/test_rigid_body_component.cpp
     )
     target_include_directories(ember-physics.tests.unit
         PRIVATE

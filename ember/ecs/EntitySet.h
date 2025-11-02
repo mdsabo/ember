@@ -1,7 +1,6 @@
 #pragma once
 
-#include <set>
-#include <unordered_set>
+#include <concepts>
 #include <vector>
 
 #include "Entity.h"
@@ -28,8 +27,62 @@ namespace ember::ecs {
         void insert(Entity e);
         void remove(Entity e);
 
-        std::set<Entity> as_set() const;
-        std::unordered_set<Entity> as_unordered_set() const;
+        class iterator {
+        public:
+            using value_type = Entity;
+            using difference_type = ptrdiff_t;
+
+            iterator() = default;
+            iterator(uint32_t id, const collections::DynamicBitset* ids, const uint32_t* generations):
+                id(id), ids(ids), generations(generations)
+            {
+                find_valid_id();
+            }
+            iterator(const iterator& other):
+                id(other.id), ids(other.ids), generations(other.generations)
+            { }
+
+            Entity operator*() const {
+                return Entity(generations[id], id);
+            }
+
+            iterator& operator++() {
+                id++;
+                find_valid_id();
+                return *this;
+            }
+
+            iterator operator++(int) {
+                auto tmp = *this;
+                ++*this;
+                return tmp;
+            }
+
+            bool operator==(const iterator& rhs) const {
+                return (id == rhs.id) && (ids == rhs.ids) && (generations == rhs.generations);
+            }
+            bool operator!=(const iterator& rhs) const {
+                return !(*this == rhs);
+            }
+        private:
+            uint32_t id;
+            const collections::DynamicBitset* ids;
+            const uint32_t* generations;
+
+            void find_valid_id() {
+                while (!ids->test(id) && id < ids->size()) id++;
+            }
+        };
+        static_assert(std::forward_iterator<iterator>);
+
+        inline iterator begin() const {
+            return iterator(0, &m_ids, m_generations.data());
+        }
+        inline iterator end() const {
+            return iterator(m_generations.size(), &m_ids, m_generations.data());\
+        }
+
+        std::vector<Entity> as_vec() const;
 
         EntitySet& operator&=(const EntitySet& rhs);
         friend EntitySet operator&(const EntitySet& lhs, const EntitySet& rhs);

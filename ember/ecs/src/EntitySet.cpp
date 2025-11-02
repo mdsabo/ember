@@ -17,22 +17,6 @@ namespace ember::ecs {
         m_ids.reset(e.id);
     }
 
-    std::set<Entity> EntitySet::as_set() const {
-        auto set = std::set<Entity>();
-        for (auto i = 0; i < this->size(); i++) {
-            if (this->contains(i)) set.insert(Entity(this->m_generations[i], i));
-        }
-        return set;
-    }
-
-    std::unordered_set<Entity> EntitySet::as_unordered_set() const {
-        auto set = std::unordered_set<Entity>();
-        for (auto i = 0; i < this->size(); i++) {
-            if (this->contains(i)) set.insert(Entity(this->m_generations[i], i));
-        }
-        return set;
-    }
-
     // For sparse sets doing it this way is ~25x speedup so it might be ugly
     // but speed is speed.
     namespace {
@@ -58,6 +42,15 @@ namespace ember::ecs {
                 }
             }
         }
+    }
+
+    std::vector<Entity> EntitySet::as_vec() const {
+        std::vector<Entity> entities;
+        entities.reserve(this->size());
+        for (auto i = 0; i < this->size(); i++) {
+            if (m_ids.test(i)) entities.push_back(Entity(m_generations[i], i));
+        }
+        return entities;
     }
 
     EntitySet& EntitySet::operator&=(const EntitySet& rhs) {

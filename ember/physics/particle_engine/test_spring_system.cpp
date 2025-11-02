@@ -38,8 +38,8 @@ TEST_CASE("SpringSystem::run applies spring force to particle components", "[Spr
     {
         // force = k * (distance - rest_length) * norm(p1 - p2) = 0.5 * (sqrt(300) - 1.0) * ((10, 10, 10) / sqrt(300))
         const auto& particles = world.read_component<ParticleComponent>();
-        REQUIRE_VEC_APPROX(particles.at(e1).applied_impulses, glm::vec3(4.71132, 4.71132, 4.71132));
-        REQUIRE_VEC_APPROX(particles.at(e2).applied_impulses, glm::vec3(-4.71132, -4.71132, -4.71132));
+        REQUIRE_VEC_APPROX(particles.at(e1).applied_forces, glm::vec3(4.71132, 4.71132, 4.71132));
+        REQUIRE_VEC_APPROX(particles.at(e2).applied_forces, glm::vec3(-4.71132, -4.71132, -4.71132));
     }
 }
 
@@ -69,7 +69,7 @@ TEST_CASE("SpringSystem::run does not increase force after max_distance", "[Spri
     {
         // force = k * (distance - rest_length) * norm(p1 - p2) = 0.5 * (5.0 - 1.0) * ((10, 10, 10) / sqrt(300))
         const auto& particles = world.read_component<ParticleComponent>();
-        REQUIRE_VEC_APPROX(particles.at(e1).applied_impulses, glm::vec3(1.1547, 1.1547, 1.1547));
-        REQUIRE_VEC_APPROX(particles.at(e2).applied_impulses, glm::vec3(-1.1547, -1.1547, -1.1547));
+        REQUIRE_VEC_APPROX(particles.at(e1).applied_forces, glm::vec3(1.1547, 1.1547, 1.1547));
+        REQUIRE_VEC_APPROX(particles.at(e2).applied_forces, glm::vec3(-1.1547, -1.1547, -1.1547));
     }
 }

@@ -15,14 +15,14 @@ struct TestObject {
     uint64_t data;
 };
 
-TEST_CASE("SlabAllocator::malloc() returns pointer to pre-initialized allocated object", "[Allocators]") {
-    auto allocator = SlabAllocator<TestObject>();
+TEST_CASE("PoolAllocator::malloc() returns pointer to pre-initialized allocated object", "[Allocators]") {
+    auto allocator = PoolAllocator<TestObject>();
     auto obj = allocator.malloc();
     REQUIRE(obj->data == 0xA5);
 }
 
-TEST_CASE("SlabAllocator::free() destroys object and returns it to the pool re-initialized", "[Allocators]") {
-    auto allocator = SlabAllocator<TestObject>();
+TEST_CASE("PoolAllocator::free() destroys object and returns it to the pool re-initialized", "[Allocators]") {
+    auto allocator = PoolAllocator<TestObject>();
     auto obj = allocator.malloc();
 
     obj->data = 10;
@@ -32,8 +32,8 @@ TEST_CASE("SlabAllocator::free() destroys object and returns it to the pool re-i
     REQUIRE(allocator.malloc() == obj);
 }
 
-TEST_CASE("SlabAllocator::allocated_count() returns the number of currently allocated objects", "[Allocators]") {
-    auto allocator = SlabAllocator<TestObject>();
+TEST_CASE("PoolAllocator::allocated_count() returns the number of currently allocated objects", "[Allocators]") {
+    auto allocator = PoolAllocator<TestObject>();
     for (auto i = 0; i < 50; i++) auto tmp = allocator.malloc();
     REQUIRE(allocator.allocated_count() == 50);
 }

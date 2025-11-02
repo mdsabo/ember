@@ -328,7 +328,7 @@ namespace ember::gpu {
         vk::CommandPool m_command_pool;
 
         template<typename T>
-        using ObjectAllocator = util::SlabAllocator<T>;
+        using ObjectAllocator = util::PoolAllocator<T>;
         ObjectAllocator<Buffer> m_buffer_allocator;
         ObjectAllocator<Image> m_image_allocator;
         ObjectAllocator<Pipeline> m_pipeline_allocator;

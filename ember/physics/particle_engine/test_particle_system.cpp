@@ -82,7 +82,7 @@ TEST_CASE("ParticleSystem::run integrates particle velocity using dt, accelerati
     }
 }
 
-TEST_CASE("ParticleSystem::run applies impulses to acceleration and velocity, then clears impulses", "[ParticleSystem]") {
+TEST_CASE("ParticleSystem::run applies forces to acceleration then clears forces", "[ParticleSystem]") {
     auto world = World();
     ParticleSystem::init(world);
 
@@ -94,7 +94,7 @@ TEST_CASE("ParticleSystem::run applies impulses to acceleration and velocity, th
             .velocity = glm::vec3(1.0, 2.0, 3.0),
             .acceleration = glm::vec3(1.0, 2.0, 3.0),
             .damping = 0.5,
-            .applied_impulses = glm::vec3(1.0, 2.0, 3.0)
+            .applied_forces = glm::vec3(1.0, 2.0, 3.0)
         });
     }
 
@@ -107,6 +107,6 @@ TEST_CASE("ParticleSystem::run applies impulses to acceleration and velocity, th
         const auto& particles = world.read_component<ParticleComponent>();
         REQUIRE_VEC_APPROX(particles.at(e).velocity, glm::vec3(1.75, 3.5, 5.25));
         REQUIRE_VEC_APPROX(particles.at(e).acceleration, glm::vec3(3.0, 6.0, 9.0));
-        REQUIRE(particles.at(e).applied_impulses == glm::vec3());
+        REQUIRE(particles.at(e).applied_forces == glm::vec3());
     }
 }
