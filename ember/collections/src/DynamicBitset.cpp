@@ -26,6 +26,18 @@ namespace ember::collections {
         return std::none_of(m_data.begin(), m_data.end(), [](const uint64_t x){ return bool(x); });
     }
 
+    size_t DynamicBitset::ffs() const {
+        for (auto w = 0; w < m_data.size(); w++) {
+            auto data = m_data.at(w);
+            for (auto i = 0; data && (i < 64); i++, data >>=1 ) {
+                if (data & 1) {
+                    return std::min(size_t(w*64 + i), this->size());
+                }
+            }
+        }
+        return this->size();
+    }
+
     void DynamicBitset::resize(size_t nbits) {
         // If we need to grow the bitset and the current set covers
         // a partial word, clear the upper bits of the word.

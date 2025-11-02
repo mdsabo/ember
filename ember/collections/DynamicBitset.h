@@ -17,6 +17,7 @@ namespace ember::collections {
         bool all() const;
         bool any() const;
         bool none() const;
+        size_t ffs() const;
 
         inline size_t size() const { return m_size; }
         void resize(size_t nbits);
