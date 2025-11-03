@@ -50,6 +50,10 @@ namespace ember::collections {
         m_size = nbits;
     }
 
+    void DynamicBitset::reserve(size_t nbits) {
+        m_data.reserve((nbits + 63) >> 6);
+    }
+
     void DynamicBitset::set(size_t bit) {
         if (bit >= m_size) throw std::out_of_range("bit out of bounds");
 

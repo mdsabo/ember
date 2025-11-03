@@ -21,6 +21,7 @@ namespace ember::collections {
 
         inline size_t size() const { return m_size; }
         void resize(size_t nbits);
+        void reserve(size_t nbits);
 
         void set(size_t bit);
         void reset(size_t bit);

@@ -9,6 +9,7 @@ target_include_directories(ember-geometry
 )
 target_link_libraries(ember-geometry
     PUBLIC
+    ember-collections
     ember-util
     glm
 )
@@ -19,7 +20,11 @@ if(EMBER_TESTS)
         tests/test_oct_tree.cpp
         tests/test_ray.cpp
     )
-    target_include_directories(ember-geometry.tests.unit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_include_directories(ember-geometry.tests.unit
+        PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}
+    )
     target_link_libraries(ember-geometry.tests.unit PRIVATE ember-geometry Catch2::Catch2WithMain)
     add_test(NAME ember-geometry.tests.unit COMMAND $<TARGET_FILE:ember-geometry.tests.unit>)
 endif()

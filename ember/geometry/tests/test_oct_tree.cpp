@@ -8,35 +8,36 @@
 
 using namespace ember::geometry;
 
-constexpr auto WORLD_MIN = glm::vec3(-10.0, -10.0, -10.0);
-constexpr auto WORLD_MAX = glm::vec3(10.0, 10.0, 10.0);
+constexpr auto WORLD_SIZE = 100.0f;
+constexpr auto WORLD_MIN = glm::vec3(-WORLD_SIZE, -WORLD_SIZE, -WORLD_SIZE);
+constexpr auto WORLD_MAX = glm::vec3(WORLD_SIZE, WORLD_SIZE, WORLD_SIZE);
 constexpr auto WORLD_AABB = AABB{
     .center = glm::vec3(),
     .half_size = WORLD_MAX
 };
 
-std::vector<OctTree<int>::Element> get_test_objects(size_t count) {
-    std::vector<OctTree<int>::Element> objects(count);
+std::vector<OctTree<uint64_t>::Element> get_test_objects(size_t count) {
+    std::vector<OctTree<uint64_t>::Element> objects(count);
     for (auto i = 0; i < count; i++) {
         objects[i].data = i;
-        objects[i].aabb.center = glm::linearRand(WORLD_MIN, WORLD_MAX);
-        objects[i].aabb.half_size = glm::linearRand(glm::vec3(), WORLD_MAX)/10.0f;
+        objects[i].aabb.center = glm::linearRand(WORLD_MIN+5.0f, WORLD_MAX-5.0f);
+        objects[i].aabb.half_size = glm::linearRand(glm::vec3(0.5, 0.5, 0.5), glm::vec3(5.0, 5.0, 5.0));
     }
     return objects;
 }
 
 TEST_CASE("QuadTree::query(aabb) returns all entries that intersect an aabb", "[QuadTree]") {
     constexpr auto OBJ_COUNT = 1000;
-    auto qt = OctTree<int>(WORLD_AABB);
+    auto ot = OctTree<uint64_t>(WORLD_AABB);
     const auto objects = get_test_objects(OBJ_COUNT);
-    for (const auto& obj : objects) qt.insert(obj);
+    for (const auto& obj : objects) ot.insert(obj);
 
     constexpr auto TEST_BOX = AABB{
         .center = glm::vec3(6.0, 4.0, -5.0),
         .half_size = glm::vec3(3.0, 3.0, 1.0)
     };
 
-    const auto intersections = qt.query(TEST_BOX);
+    const auto intersections = ot.query(TEST_BOX);
 
     for (auto i = 0; i < OBJ_COUNT; i++) {
         if (intersect(TEST_BOX, objects[i].aabb)) {
@@ -49,37 +50,34 @@ TEST_CASE("QuadTree::query(aabb) returns all entries that intersect an aabb", "[
 TEST_CASE("OctTree::insert benchmarks", "[OctTree]") {
     BENCHMARK_ADVANCED("1K objects")(Catch::Benchmark::Chronometer meter) {
         constexpr auto OBJ_COUNT = 1000;
-        auto qt = OctTree<int>(WORLD_AABB);
+        auto ot = OctTree<uint64_t>(WORLD_AABB);
         const auto objects = get_test_objects(OBJ_COUNT);
-        for (const auto& obj : objects) qt.insert(obj);
 
-        meter.measure([&qt, &objects]() {
-            for (const auto& obj : objects) qt.insert(obj);
-            return &qt;
+        meter.measure([&ot, &objects]() {
+            for (const auto& obj : objects) ot.insert(obj);
+            return &ot;
         });
     };
 
     BENCHMARK_ADVANCED("10K objects")(Catch::Benchmark::Chronometer meter) {
         constexpr auto OBJ_COUNT = 10000;
-        auto qt = OctTree<int>(WORLD_AABB);
+        auto ot = OctTree<uint64_t>(WORLD_AABB);
         const auto objects = get_test_objects(OBJ_COUNT);
-        for (const auto& obj : objects) qt.insert(obj);
 
-        meter.measure([&qt, &objects]() {
-            for (const auto& obj : objects) qt.insert(obj);
-            return &qt;
+        meter.measure([&ot, &objects]() {
+            for (const auto& obj : objects) ot.insert(obj);
+            return &ot;
         });
     };
 
     BENCHMARK_ADVANCED("100K objects")(Catch::Benchmark::Chronometer meter) {
         constexpr auto OBJ_COUNT = 100000;
-        auto qt = OctTree<int>(WORLD_AABB);
+        auto ot = OctTree<uint64_t>(WORLD_AABB);
         const auto objects = get_test_objects(OBJ_COUNT);
-        for (const auto& obj : objects) qt.insert(obj);
 
-        meter.measure([&qt, &objects]() {
-            for (const auto& obj : objects) qt.insert(obj);
-            return &qt;
+        meter.measure([&ot, &objects]() {
+            for (const auto& obj : objects) ot.insert(obj);
+            return &ot;
         });
     };
 }
@@ -87,16 +85,16 @@ TEST_CASE("OctTree::insert benchmarks", "[OctTree]") {
 TEST_CASE("OctTree::query benchmarks", "[OctTree]") {
     BENCHMARK_ADVANCED("1K objects")(Catch::Benchmark::Chronometer meter) {
         constexpr auto OBJ_COUNT = 1000;
-        auto qt = OctTree<int>(WORLD_AABB);
+        auto ot = OctTree<uint64_t>(WORLD_AABB);
         const auto objects = get_test_objects(OBJ_COUNT);
-        for (const auto& obj : objects) qt.insert(obj);
+        for (const auto& obj : objects) ot.insert(obj);
 
         constexpr auto TEST_BOX = AABB{
             .center = glm::vec3(6.0, 4.0, -5.0),
             .half_size = glm::vec3(3.0, 3.0, 1.0)
         };
 
-        meter.measure([&qt, &TEST_BOX]() { return qt.query(TEST_BOX); });
+        meter.measure([&ot, &TEST_BOX]() { return ot.query(TEST_BOX); });
     };
 
     BENCHMARK_ADVANCED("Brute force 1K objects")(Catch::Benchmark::Chronometer meter) {
@@ -109,7 +107,7 @@ TEST_CASE("OctTree::query benchmarks", "[OctTree]") {
         };
 
         meter.measure([&TEST_BOX, &objects]() {
-            std::vector<int> intersections;
+            std::vector<uint64_t> intersections;
             for (const auto& obj : objects) {
                 if (intersect(obj.aabb, TEST_BOX)) intersections.push_back(obj.data);
             }
@@ -119,16 +117,16 @@ TEST_CASE("OctTree::query benchmarks", "[OctTree]") {
 
     BENCHMARK_ADVANCED("10K objects")(Catch::Benchmark::Chronometer meter) {
         constexpr auto OBJ_COUNT = 10000;
-        auto qt = OctTree<int>(WORLD_AABB);
+        auto ot = OctTree<uint64_t>(WORLD_AABB);
         const auto objects = get_test_objects(OBJ_COUNT);
-        for (const auto& obj : objects) qt.insert(obj);
+        for (const auto& obj : objects) ot.insert(obj);
 
         constexpr auto TEST_BOX = AABB{
             .center = glm::vec3(6.0, 4.0, -5.0),
             .half_size = glm::vec3(3.0, 3.0, 1.0)
         };
 
-        meter.measure([&qt, &TEST_BOX]() { return qt.query(TEST_BOX); });
+        meter.measure([&ot, &TEST_BOX]() { return ot.query(TEST_BOX); });
     };
 
     BENCHMARK_ADVANCED("Brute force 10K objects")(Catch::Benchmark::Chronometer meter) {
@@ -141,7 +139,7 @@ TEST_CASE("OctTree::query benchmarks", "[OctTree]") {
         };
 
         meter.measure([&TEST_BOX, &objects]() {
-            std::vector<int> intersections;
+            std::vector<uint64_t> intersections;
             for (const auto& obj : objects) {
                 if (intersect(obj.aabb, TEST_BOX)) intersections.push_back(obj.data);
             }
@@ -151,16 +149,18 @@ TEST_CASE("OctTree::query benchmarks", "[OctTree]") {
 
     BENCHMARK_ADVANCED("100K objects")(Catch::Benchmark::Chronometer meter) {
         constexpr auto OBJ_COUNT = 100000;
-        auto qt = OctTree<int>(WORLD_AABB);
+        auto ot = OctTree<uint64_t>(WORLD_AABB);
         const auto objects = get_test_objects(OBJ_COUNT);
-        for (const auto& obj : objects) qt.insert(obj);
+        for (const auto& obj : objects) ot.insert(obj);
 
         constexpr auto TEST_BOX = AABB{
             .center = glm::vec3(6.0, 4.0, -5.0),
             .half_size = glm::vec3(3.0, 3.0, 1.0)
         };
 
-        meter.measure([&qt, &TEST_BOX]() { return qt.query(TEST_BOX); });
+        meter.measure([&ot, &TEST_BOX]() {
+            auto i = ot.query(TEST_BOX);
+        });
     };
 
     BENCHMARK_ADVANCED("Brute force 100K objects")(Catch::Benchmark::Chronometer meter) {
@@ -173,7 +173,7 @@ TEST_CASE("OctTree::query benchmarks", "[OctTree]") {
         };
 
         meter.measure([&TEST_BOX, &objects]() {
-            std::vector<int> intersections;
+            std::vector<uint64_t> intersections;
             for (const auto& obj : objects) {
                 if (intersect(obj.aabb, TEST_BOX)) intersections.push_back(obj.data);
             }
