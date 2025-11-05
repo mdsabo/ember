@@ -18,6 +18,7 @@ if(EMBER_TESTS)
     add_executable(ember-geometry.tests.unit
         tests/test_intersect.cpp
         tests/test_oct_tree.cpp
+        tests/test_quad_tree.cpp
         tests/test_ray.cpp
     )
     target_include_directories(ember-geometry.tests.unit

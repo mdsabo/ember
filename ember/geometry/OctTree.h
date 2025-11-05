@@ -24,10 +24,6 @@ namespace ember::geometry {
             m_nodes.emplace_back(extent.min, extent.max);
         }
 
-        ~OctTree() {
-            printf("Nodes %zu Tests %zu Intersects %zu\n", m_nodes.size(), m_profile_node_tests, m_profile_intersects);
-        }
-
         void insert(const Element& e) {
             assert(node_encloses_aabb(m_nodes.at(0), e.aabb));
             insert(0, 0, e);
@@ -42,7 +38,7 @@ namespace ember::geometry {
     private:
         static constexpr auto MAX_DEPTH = 8;
         static constexpr auto NODE_SPLIT_THRESHOLD = 8;
-        static constexpr auto NO_ELEMENTS = collections::LinearLinkedLists<T>::END_OF_LIST;
+        static constexpr auto NO_ELEMENTS = collections::LinearLinkedLists<T, uint32_t>::END_OF_LIST;
 
         struct Node {
             AABB::Extent extent;
@@ -58,9 +54,6 @@ namespace ember::geometry {
         };
         std::vector<Node> m_nodes;
         collections::LinearLinkedLists<Element, uint32_t> m_elements;
-
-        size_t m_profile_node_tests = 0;
-        size_t m_profile_intersects = 0;
 
         void insert(uint32_t nodeid, unsigned int depth, const Element& e) {
             assert(depth <= MAX_DEPTH);
@@ -172,12 +165,8 @@ namespace ember::geometry {
         void query(const AABB& aabb, std::vector<T>& intersections, unsigned int nodeid) {
             auto& node = m_nodes.at(nodeid);
 
-            m_profile_node_tests++;
-            m_profile_intersects++;
-
             if (intersect(aabb, node.aabb())) {
                 for (auto iter = m_elements.begin(node.elements); iter != m_elements.end(); iter++) {
-                    m_profile_intersects++;
                     if (intersect(aabb, iter->aabb)) intersections.push_back(iter->data);
                 }
 
